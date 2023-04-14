@@ -20,7 +20,43 @@
 
 
 LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
-    : m_trace(tracer)
+    : m_hlayout(nullptr)
+    , m_vlayout(nullptr)
+    , menuBar(nullptr)
+    , fileMenu(nullptr)
+    , actOpen(nullptr)
+    , actClose(nullptr)
+    , actSave(nullptr)
+    , tabWidget(nullptr)
+    , gbxLevel(nullptr)
+    , lblLevel(nullptr)
+    , cboLevel(nullptr)
+    , cbo_levelModel(nullptr)
+    , btnLevelFiltering(nullptr)
+    , gbxFunctionFiltering(nullptr)
+    , cboClass(nullptr)
+    , cbo_classModel(nullptr)
+    , lblClass(nullptr)
+    , lblFunction(nullptr)
+    , cboFunction(nullptr)
+    , cboFunctionModel(nullptr)
+    , btnFunctionFilter(nullptr)
+    , gbxFilter(nullptr)
+    , cbxCaseSensitive(nullptr)
+    , lblSearch(nullptr)
+    , cbxInversesearch(nullptr)
+    , btnFilter(nullptr)
+    , btnClearFilter(nullptr)
+    , lblStartTime(nullptr)
+    , lblEndTime(nullptr)
+    , dtEndTime(nullptr)
+    , dtEndTime_2(nullptr)
+    , cbxWordOnly(nullptr)
+    , cbxSearch(nullptr)
+    , toggleMark(nullptr)
+    , GotoLine(nullptr)
+    , SearchText(nullptr)
+    , m_trace(tracer)
     , m_bWordOnly(false)
 {
     CFuncTracer trace("LogViewer::LogViewer", m_trace);
@@ -67,7 +103,181 @@ LogViewer::~LogViewer()
     CFuncTracer trace("LogViewer::~LogViewer", m_trace);
     try
     {
-//       delete ui;
+        if (m_hlayout != nullptr)
+        {
+            delete m_hlayout;
+            m_hlayout = nullptr;
+        }
+        if (m_vlayout != nullptr)
+        {
+            delete m_vlayout;
+            m_vlayout = nullptr;
+        }
+        if (menuBar != nullptr)
+        {
+            delete menuBar;
+            menuBar = nullptr;
+        }
+        if (fileMenu != nullptr)
+        {
+            delete fileMenu;
+            fileMenu = nullptr;
+        }
+        if (actOpen != nullptr)
+        {
+            delete actOpen;
+            actOpen = nullptr;
+        }
+        if (actClose != nullptr)
+        {
+            delete actClose;
+            actClose = nullptr;
+        }
+        if (actSave != nullptr)
+        {
+            delete actSave;
+            actSave = nullptr;
+        }
+        if (tabWidget != nullptr)
+        {
+            delete tabWidget;
+            tabWidget = nullptr;
+        }
+        if (lblLevel != nullptr)
+        {
+            delete lblLevel;
+            lblLevel = nullptr;
+        }
+        if (cboLevel != nullptr)
+        {
+            delete cboLevel;
+            cboLevel = nullptr;
+        }
+        if (cbo_levelModel != nullptr)
+        {
+            delete cbo_levelModel;
+            cbo_levelModel = nullptr;
+        }
+        if (btnLevelFiltering != nullptr)
+        {
+            delete btnLevelFiltering;
+            btnLevelFiltering = nullptr;
+        }
+        if (gbxLevel != nullptr)
+        {
+            delete gbxLevel;
+            gbxLevel = nullptr;
+        }
+        if (cboClass != nullptr)
+        {
+            delete cboClass;
+            cboClass = nullptr;
+        }
+        if (cbo_classModel != nullptr)
+        {
+            delete cbo_classModel;
+            cbo_classModel = nullptr;
+        }
+        if (lblClass != nullptr)
+        {
+            delete lblClass;
+            lblClass = nullptr;
+        }
+        if (lblFunction != nullptr)
+        {
+            delete lblFunction;
+            lblFunction = nullptr;
+        }
+        if (cboFunction != nullptr)
+        {
+            delete cboFunction;
+            cboFunction = nullptr;
+        }
+        if (cboFunctionModel != nullptr)
+        {
+            delete cboFunctionModel;
+            cboFunctionModel = nullptr;
+        }
+        if (btnFunctionFilter != nullptr)
+        {
+            delete btnFunctionFilter;
+            btnFunctionFilter = nullptr;
+        }
+        if (gbxFunctionFiltering != nullptr)
+        {
+            delete gbxFunctionFiltering;
+            gbxFunctionFiltering = nullptr;
+        }
+        if (cbxCaseSensitive != nullptr)
+        {
+            delete cbxCaseSensitive;
+            cbxCaseSensitive = nullptr;
+        }
+        if (lblSearch != nullptr)
+        {
+            delete lblSearch;
+            lblSearch = nullptr;
+        }
+        if (cbxInversesearch != nullptr)
+        {
+            delete cbxInversesearch;
+            cbxInversesearch = nullptr;
+        }
+        if (btnFilter != nullptr)
+        {
+            delete btnFilter;
+            btnFilter = nullptr;
+        }
+        if (btnClearFilter != nullptr)
+        {
+            delete btnClearFilter;
+            btnClearFilter = nullptr;
+        }
+        if (lblStartTime != nullptr)
+        {
+            delete lblStartTime;
+            lblStartTime = nullptr;
+        }
+        if (lblEndTime != nullptr)
+        {
+            delete lblEndTime;
+            lblEndTime = nullptr;
+        }
+        if (dtEndTime != nullptr)
+        {
+            delete dtEndTime;
+            dtEndTime = nullptr;
+        }
+        if (cbxWordOnly != nullptr)
+        {
+            delete cbxWordOnly;
+            cbxWordOnly = nullptr;
+        }
+        if (cbxSearch != nullptr)
+        {
+            delete cbxSearch;
+            cbxSearch = nullptr;
+        }
+        if (toggleMark != nullptr)
+        {
+            delete toggleMark;
+            toggleMark = nullptr;
+        }
+        if (GotoLine != nullptr)
+        {
+            delete GotoLine;
+            GotoLine = nullptr;
+        }
+        if (SearchText != nullptr)
+        {
+            delete SearchText;
+            SearchText = nullptr;
+        }
+        if (gbxFilter != nullptr)
+        {
+            delete gbxFilter;
+            gbxFilter = nullptr;
+        }
     }
     catch(std::exception& ex)
     {

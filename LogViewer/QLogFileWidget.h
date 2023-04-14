@@ -217,6 +217,9 @@ class QLogFileWidget : public QWidget
 public:
     explicit QLogFileWidget(std::shared_ptr<CTracer> tracer, std::vector<CLogEntry> entries, QWidget *parent = nullptr)
         : m_tabindex(-1)
+        , m_Layout(nullptr)
+        , m_View(nullptr)
+        , m_Model(nullptr)
         , m_trace(tracer)
     {
         CFuncTracer trace("QLogFileWidget::QLogFileWidget", tracer);
@@ -229,6 +232,35 @@ public:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+    }
+
+    ~QLogFileWidget()
+    {
+        CFuncTracer trace("QLogFileModel~QLogFileModel", m_trace);
+        try
+        {
+            if (m_Layout != nullptr)
+            {
+                delete m_Layout;
+                m_Layout = nullptr;
+            }
+            if (m_View != nullptr)
+            {
+                delete m_View;
+                m_View = nullptr;
+            }
+
+            if (m_Model != nullptr)
+            {
+                delete m_Model;
+                m_Model = nullptr;
+            }
+
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occurred: %s", ex.what());
         }
     }
 
