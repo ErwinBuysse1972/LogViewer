@@ -84,7 +84,6 @@ private:
     QLabel *lblStartTime;
     QLabel *lblEndTime;
     QTimeEdit *dtEndTime;
-    QTimeEdit *dtEndTime_2;
     QCheckBox *cbxWordOnly;
     QComboBox *cbxSearch;
 

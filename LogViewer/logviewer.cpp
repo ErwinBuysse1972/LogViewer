@@ -50,7 +50,6 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     , lblStartTime(nullptr)
     , lblEndTime(nullptr)
     , dtEndTime(nullptr)
-    , dtEndTime_2(nullptr)
     , cbxWordOnly(nullptr)
     , cbxSearch(nullptr)
     , toggleMark(nullptr)
@@ -386,9 +385,6 @@ void LogViewer::init_createFilterGroupBox(void)
         dtEndTime = new QTimeEdit(gbxFilter);
         dtEndTime->setObjectName("dtEndTime");
         dtEndTime->setGeometry(QRect(760, 40, 118, 26));
-        dtEndTime_2 = new QTimeEdit(gbxFilter);
-        dtEndTime_2->setObjectName("dtEndTime_2");
-        dtEndTime_2->setGeometry(QRect(530, 40, 118, 26));
         cbxWordOnly = new QCheckBox(gbxFilter);
         cbxWordOnly->setObjectName("cbxWordOnly");
         cbxWordOnly->setEnabled(true);
@@ -510,7 +506,6 @@ void LogViewer::init_retranslateUi(void)
         lblStartTime->setText(QCoreApplication::translate("LogViewer", "Start time", nullptr));
         lblEndTime->setText(QCoreApplication::translate("LogViewer", "End time", nullptr));
         dtEndTime->setDisplayFormat(QCoreApplication::translate("LogViewer", "HH:mm:ss", nullptr));
-        dtEndTime_2->setDisplayFormat(QCoreApplication::translate("LogViewer", "HH:mm:ss", nullptr));
         cbxWordOnly->setText(QCoreApplication::translate("LogViewer", "Word Only", nullptr));
 
         gbxFunctionFiltering->setTitle(QCoreApplication::translate("LogViewer", "Function Filtering", nullptr));

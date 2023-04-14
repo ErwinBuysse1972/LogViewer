@@ -15,6 +15,18 @@ public:
     {
         CFuncTracer trace("QCheckableModel::QCheckableModel", m_trace);
     }
+
+    ~QCheckableModel()
+    {
+        std::for_each(m_stdItems.begin(), m_stdItems.end(), [=](std::pair<int, QStandardItem*> p){
+            if (p.second)
+            {
+                delete p.second;
+                p.second = nullptr;
+            }
+        });
+        m_stdItems.clear();
+    }
     int rowCount(const QModelIndex &) const override
     {
         CFuncTracer trace("QCheckableModel::rowCount", m_trace);
