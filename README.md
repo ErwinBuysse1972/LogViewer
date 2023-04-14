@@ -4,6 +4,13 @@ This is a project I am currently working on, to make it possible to have a stack
 The following files can be included inside your embedded project to make it possible to generate the logs.
 CFuncTracer.cpp & CFuncTracer.h : those files contains the function tracers that you can call at the beginning of each function.  Those functions will automatically add timestamp, dbg level, procid and threadid + description. you can get then a output like this:
 
+09:11:48.589 TRACE     [4174:4233]  - HomeSensor::IsDeviceConnected() : CONNECTED
+09:11:48.600 TRACE     [4174:4223]  - TcpIpPortMapper::Add() : Entr
+09:11:48.601 TRACE     [4174:4223]  - TcpIpPortMapperMapper::Add() : Videodevice HomeSensor
+09:11:48.602 TRACE     [4174:4223]  - TcpIpPortMapperMapper::Add() : ProtocolInfo (7)
+09:11:48.604 TRACE     [4174:4223]  - TcpIpPortMapperMapper::Add() :     - TraficonSdk2/Xml2
+09:11:48.605 TRACE     [4174:4223]  - TcpIpPortMapperMapper::Add() :     - RTSP
+09:11:48.605 TRACE     [4174:4223]  - TcpIpPortMapperMapper::Add() :     - HTTP
 
 Ctracer.cpp & CTracer.h : is the different tracers you can implement like filetracer, dayfiletracer, circularbuffertracer, tcpiptracer etc.
 This object will generate the output and send to the required destination (file, tcp/ip connection, etc).
