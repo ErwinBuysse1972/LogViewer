@@ -19,7 +19,7 @@
 #include "inc/Logic/cconversion.h"
 
 
-LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
+LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, __attribute((unused)) QWidget *parent)
     : m_hlayout(nullptr)
     , m_vlayout(nullptr)
     , menuBar(nullptr)
@@ -52,17 +52,15 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     , dtEndTime(nullptr)
     , cbxWordOnly(nullptr)
     , cbxSearch(nullptr)
-    , toggleMark(nullptr)
-    , GotoLine(nullptr)
-    , SearchText(nullptr)
+    , keyCtrlM(nullptr)
+    , keyF3(nullptr)
+    , keyCtrlF(nullptr)
     , m_trace(tracer)
     , m_bWordOnly(false)
 {
     CFuncTracer trace("LogViewer::LogViewer", m_trace);
     try
     {
-//        ui->setupUi(this);
-
         m_vlayout = new QVBoxLayout();
         m_hlayout = new QHBoxLayout();
 
@@ -72,6 +70,7 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
         init_createLevelFilteringGroupBox();
         init_createFunctionFilteringGroupBox();
         init_createFilterGroupBox();
+        init_createShortCut();
 
         init_retranslateUi();
         init_styles();
@@ -257,26 +256,28 @@ LogViewer::~LogViewer()
             delete cbxSearch;
             cbxSearch = nullptr;
         }
-        if (toggleMark != nullptr)
-        {
-            delete toggleMark;
-            toggleMark = nullptr;
-        }
-        if (GotoLine != nullptr)
-        {
-            delete GotoLine;
-            GotoLine = nullptr;
-        }
-        if (SearchText != nullptr)
-        {
-            delete SearchText;
-            SearchText = nullptr;
-        }
         if (gbxFilter != nullptr)
         {
             delete gbxFilter;
             gbxFilter = nullptr;
         }
+
+        if (keyCtrlM != nullptr)
+        {
+            delete keyCtrlM;
+            keyCtrlM = nullptr;
+        }
+        if (keyF3 != nullptr)
+        {
+            delete keyF3;
+            keyF3 = nullptr;
+        }
+        if (keyCtrlF != nullptr)
+        {
+            delete keyCtrlF;
+            keyCtrlF = nullptr;
+        }
+
     }
     catch(std::exception& ex)
     {
@@ -474,17 +475,18 @@ void LogViewer::init_createShortCut(void)
     CFuncTracer trace("LogViewer::init_createShortCut", m_trace);
     try
     {
-        QKeySequence togglekey(Qt::CTRL + Qt::Key_M);
-        QKeySequence searchkey(Qt::CTRL + Qt::Key_F);
-        QKeySequence gotoLine(Qt::Key_F3);
+        keyCtrlM = new QShortcut(this);
+        keyCtrlM->setKey(Qt::CTRL|Qt::Key_M);
 
-        toggleMark = new QShortcut(togglekey, this);
-        GotoLine = new QShortcut(gotoLine, this);
-        SearchText= new QShortcut(searchkey, this);
+        keyF3 = new QShortcut(this);
+        keyF3->setKey(Qt::Key_F3);
 
-        connect(toggleMark, &QShortcut::activated, this, &LogViewer::on_toggle_mark);
-        connect(GotoLine, &QShortcut::activated, this, &LogViewer::on_goto_next_mark);
-        connect(SearchText, &QShortcut::activated, this, &LogViewer::on_search_text);
+        keyCtrlF = new QShortcut(this);
+        keyCtrlF->setKey(Qt::CTRL|Qt::Key_F);
+
+        connect(keyCtrlM, &QShortcut::activated, this, &LogViewer::on_toggle_mark);
+        connect(keyF3, &QShortcut::activated, this, &LogViewer::on_goto_next_mark);
+        connect(keyCtrlF, &QShortcut::activated, this, &LogViewer::on_search_text);
     }
     catch(std::exception& ex)
     {

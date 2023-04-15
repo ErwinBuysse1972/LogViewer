@@ -87,9 +87,9 @@ private:
     QCheckBox *cbxWordOnly;
     QComboBox *cbxSearch;
 
-    QShortcut *toggleMark;
-    QShortcut *GotoLine;
-    QShortcut *SearchText;
+    QShortcut *keyCtrlM; // key used for toggle marks
+    QShortcut *keyF3;   // key used for goto next mark
+    QShortcut *keyCtrlF; // key used for searching
 
 
     std::shared_ptr<CTracer> m_trace;

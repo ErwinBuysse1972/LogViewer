@@ -104,6 +104,7 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        return {};
     }
     void append(std::vector<CLogEntry> entries)
     {
@@ -215,7 +216,7 @@ public:
 class QLogFileWidget : public QWidget
 {
 public:
-    explicit QLogFileWidget(std::shared_ptr<CTracer> tracer, std::vector<CLogEntry> entries, QWidget *parent = nullptr)
+    explicit QLogFileWidget(std::shared_ptr<CTracer> tracer, std::vector<CLogEntry> entries, __attribute__((unused))QWidget *parent = nullptr)
         : m_tabindex(-1)
         , m_Layout(nullptr)
         , m_View(nullptr)
@@ -310,7 +311,7 @@ public:
             if (row >= 0)
             {
                 QModelIndex nextMark = m_Model->CreateIndex(row, 0);
-                m_View->scrollTo(nextMark);
+                m_View->setCurrentIndex(nextMark);
             }
             else
             {
@@ -339,7 +340,7 @@ private slots:
             trace.Error("Exception occurred : %s", ex.what());
         }
     }
-    void row_click(const QModelIndex &  index)
+    void row_click(__attribute__((unused)) const QModelIndex &  index)
     {
         CFuncTracer trace("QLogFileWidget::row_click", m_trace);
         try
