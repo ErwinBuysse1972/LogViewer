@@ -11,17 +11,20 @@
 #include <QFileDialog>
 #include <QMenuBar>
 #include <QMenu>
+#include <QTextEdit>
+#include <QRegularExpression>
 #include "cfunctracer.h"
 #include "ctracer.h"
 #include "cscopedtimer.h"
 #include "QLogFileWidget.h"
 #include "Logic/clogfile.h"
 #include "inc/Logic/cconversion.h"
-#include "searchDlg.h"
+#include "searchform.h"
 
 
-LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, __attribute((unused)) QWidget *parent)
-    : m_hlayout(nullptr)
+LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
+    : QWidget(parent)
+    , m_hlayout(nullptr)
     , m_vlayout(nullptr)
     , menuBar(nullptr)
     , fileMenu(nullptr)
@@ -278,6 +281,7 @@ LogViewer::~LogViewer()
             delete keyCtrlF;
             keyCtrlF = nullptr;
         }
+
 
     }
     catch(std::exception& ex)
@@ -823,15 +827,20 @@ void LogViewer::on_search_text(void)
     try
     {
         std::string sText = "";
-        SearchDlg *searchDialog = new SearchDlg([=, &trace, &sText](const std::string& text)
+        QWaitCondition evTextInserted;
+        bool bError = false;
+        SearchForm *searchDialog = new SearchForm([=, &trace, &sText, &evTextInserted, &bError](const std::string& text, bool err)
                                                 {
                                                     trace.Info("search text : %s", text.c_str());
-                                                    sText = text;
+                                                      if (  (sText.empty() == false)
+                                                          &&(bError == false))
+                                                      {
+                                                        trace.Info("text : %s", sText.c_str());
+                                                      }
+                                                      else
+                                                          trace.Error("Failed to search text (%s, Error = %s)", sText.c_str(), (bError == true)?"TRUE":"FALSE");
                                                 }, m_trace);
-        if (sText.empty() == false)
-        {
-
-        }
+        searchDialog->show();
     }
     catch(std::exception& ex)
     {
@@ -1006,7 +1015,7 @@ void LogViewer::saveXmlEntry(void)
 }
 void LogViewer::saveTextEntry(void)
 {
-    CFuncTracer trace("",m_trace);
+    CFuncTracer trace("LogViewer::saveTextEntry",m_trace);
     try
     {
 

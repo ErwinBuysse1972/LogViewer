@@ -33,8 +33,9 @@ public:
         , m_classname(classname)
         , m_funcName(func)
         , m_description(desc)
+        , m_ReqText("")
         , m_bMarked(false)
-        , m_bBold(false)
+        , m_bRequiredText(false)
     {
         CFuncTracer trace("CLogEntry::CLogEntry", m_trace, false);
         m_ThdId = std::atoi(m_threadId.c_str());
@@ -79,7 +80,7 @@ public:
     std::string Description(void) const { return m_description; }
     void AddDescription(const char *s){ m_description += s;}
     void SetMark(bool bmark){ m_bMarked = bmark;}
-    void SetBold(bool bld){ m_bBold = bld;}
+    void SetSearchMark(bool required, const std::string& text){ m_bRequiredText = required; m_ReqText = text;}
 
     TracerLevel GetLevel(void){ return m_tracerLevel;}
     int GetProcId(void) const { return m_ProcId;}
@@ -97,7 +98,8 @@ public:
     unsigned long GetFuncNameLength(){ return m_funcName.length();}
     unsigned long GetDescriptionLength(){ return m_description.length();}
     bool IsMarked(void) const{ return m_bMarked;}
-    bool IsBold(void) const { return m_bBold; }
+    bool IsEntryRequired(void) const { return m_bRequiredText; }
+    std::string GetRequiredText(void) const{ return m_ReqText; }
 
     static unsigned long long GetUiTime(std::string sTime)
     {
@@ -117,9 +119,10 @@ private:
     std::string m_classname;
     std::string m_funcName;
     std::string m_description;
+    std::string m_ReqText;
     TracerLevel m_tracerLevel;
     bool m_bMarked;
-    bool m_bBold;
+    bool m_bRequiredText;
     int m_ThdId;
     int m_ProcId;
     unsigned long long m_uiTime;

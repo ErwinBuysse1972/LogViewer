@@ -28,9 +28,9 @@ QtApplication {
         "inc/Logic/ctracer.h",
         "inc/Logic/cscopedtimer.h",
         "inc/Logic/cconversion.h",
-        "searchDlg.cpp",
-        "searchDlg.h",
-        "searchDlg.ui",
+        "searchform.cpp",
+        "searchform.h",
+        "searchform.ui",
     ]
 
     Group {

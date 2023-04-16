@@ -26,9 +26,6 @@ public:
     LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent = nullptr);
     ~LogViewer();
 
-public slots:
-//    void addTask();
-
 private slots:
     void on_cbxWordOnly_stateChanged(int arg1);
     void on_cbxCaseSensitive_stateChanged(int arg1);

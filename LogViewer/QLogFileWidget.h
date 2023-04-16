@@ -67,7 +67,7 @@ public:
 
         if (role == Qt::FontRole)
         {
-            if (entry.IsEntryRequired(())
+            if (entry.IsEntryRequired())
             {
                 trace.Trace("Required text : %s", entry.GetRequiredText().c_str());
             }
