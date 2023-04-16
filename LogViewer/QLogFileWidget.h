@@ -10,10 +10,6 @@
 #include <QColor>
 #include <QMessageBox>
 
-namespace Ui {
-class clogfileview;
-class clogfileModel;
-}
 enum class eColumns
 {
     eDateTime = 0,
@@ -66,6 +62,14 @@ public:
                 case (int)eColumns::eFunction: return QString::fromStdString(entry.FuncName());
                 case (int)eColumns::eDescription: return QString::fromStdString(entry.Description());
                 default: return {};
+            }
+        }
+
+        if (role == Qt::FontRole)
+        {
+            if (entry.IsEntryRequired(())
+            {
+                trace.Trace("Required text : %s", entry.GetRequiredText().c_str());
             }
         }
 
@@ -206,6 +210,18 @@ public:
             trace.Error("Exception occurred : %s", ex.what());
         }
         return -1;
+    }
+    void HighlightText(int row, std::string& text, QColor HighLightColor, QColor BackgroundColor)
+    {
+        CFuncTracer trace("QLogFileModel::HighlightText", m_trace);
+        try
+        {
+
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occurred : %s", ex.what());
+        }
     }
     QModelIndex CreateIndex(int row, int column)
     {

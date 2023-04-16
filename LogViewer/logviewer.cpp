@@ -17,6 +17,7 @@
 #include "QLogFileWidget.h"
 #include "Logic/clogfile.h"
 #include "inc/Logic/cconversion.h"
+#include "searchDlg.h"
 
 
 LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, __attribute((unused)) QWidget *parent)
@@ -498,7 +499,7 @@ void LogViewer::init_retranslateUi(void)
     CFuncTracer trace("LogViewer::init_retranslateUi", m_trace);
     try
     {
-        //LogViewer->setWindowTitle(QCoreApplication::translate("LogViewer", "LogViewer", nullptr));
+        setWindowTitle(QCoreApplication::translate("LogViewer", "LogViewer", nullptr));
         gbxFilter->setTitle(QCoreApplication::translate("LogViewer", "Text Filtering", nullptr));
         cbxCaseSensitive->setText(QCoreApplication::translate("LogViewer", "Case Sensitive", nullptr));
         lblSearch->setText(QCoreApplication::translate("LogViewer", "Search", nullptr));
@@ -518,10 +519,6 @@ void LogViewer::init_retranslateUi(void)
         gbxLevel->setTitle(QCoreApplication::translate("LogViewer", "Level Filtering", nullptr));
         lblLevel->setText(QCoreApplication::translate("LogViewer", "Level", nullptr));
         btnLevelFiltering->setText(QCoreApplication::translate("LogViewer", "Level Filter", nullptr));
-
-    /*
-        btnLoadFile->setText(QCoreApplication::translate("LogViewer", "Load", nullptr));
-        toolBar->setWindowTitle(QCoreApplication::translate("LogViewer", "toolBar", nullptr));*/
 
     }
     catch(std::exception& ex)
@@ -825,7 +822,16 @@ void LogViewer::on_search_text(void)
     CFuncTracer trace("LogViewer::on_search_text", m_trace);
     try
     {
+        std::string sText = "";
+        SearchDlg *searchDialog = new SearchDlg([=, &trace, &sText](const std::string& text)
+                                                {
+                                                    trace.Info("search text : %s", text.c_str());
+                                                    sText = text;
+                                                }, m_trace);
+        if (sText.empty() == false)
+        {
 
+        }
     }
     catch(std::exception& ex)
     {

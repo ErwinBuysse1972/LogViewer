@@ -34,6 +34,7 @@ public:
         , m_funcName(func)
         , m_description(desc)
         , m_bMarked(false)
+        , m_bBold(false)
     {
         CFuncTracer trace("CLogEntry::CLogEntry", m_trace, false);
         m_ThdId = std::atoi(m_threadId.c_str());
@@ -78,6 +79,7 @@ public:
     std::string Description(void) const { return m_description; }
     void AddDescription(const char *s){ m_description += s;}
     void SetMark(bool bmark){ m_bMarked = bmark;}
+    void SetBold(bool bld){ m_bBold = bld;}
 
     TracerLevel GetLevel(void){ return m_tracerLevel;}
     int GetProcId(void) const { return m_ProcId;}
@@ -95,6 +97,7 @@ public:
     unsigned long GetFuncNameLength(){ return m_funcName.length();}
     unsigned long GetDescriptionLength(){ return m_description.length();}
     bool IsMarked(void) const{ return m_bMarked;}
+    bool IsBold(void) const { return m_bBold; }
 
     static unsigned long long GetUiTime(std::string sTime)
     {
@@ -116,6 +119,7 @@ private:
     std::string m_description;
     TracerLevel m_tracerLevel;
     bool m_bMarked;
+    bool m_bBold;
     int m_ThdId;
     int m_ProcId;
     unsigned long long m_uiTime;
