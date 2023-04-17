@@ -56,11 +56,13 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     , dtEndTime(nullptr)
     , cbxWordOnly(nullptr)
     , cbxSearch(nullptr)
+    , m_searchDialog(nullptr)
     , keyCtrlM(nullptr)
     , keyF3(nullptr)
     , keyCtrlF(nullptr)
     , m_trace(tracer)
     , m_bWordOnly(false)
+    , m_bSearchActive(false)
 {
     CFuncTracer trace("LogViewer::LogViewer", m_trace);
     try
@@ -265,6 +267,11 @@ LogViewer::~LogViewer()
             delete gbxFilter;
             gbxFilter = nullptr;
         }
+        if (m_searchDialog)
+        {
+            delete m_searchDialog;
+            m_searchDialog = nullptr;
+        }
 
         if (keyCtrlM != nullptr)
         {
@@ -289,7 +296,6 @@ LogViewer::~LogViewer()
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
-
 void LogViewer::init_styles(void)
 {
     CFuncTracer trace("LogViewer::init_styles", m_trace);
@@ -313,7 +319,6 @@ void LogViewer::init_styles(void)
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
-
 void LogViewer::init_createActions(void)
 {
     CFuncTracer trace("LogViewer::init_createActions", m_trace);
@@ -483,13 +488,22 @@ void LogViewer::init_createShortCut(void)
         keyCtrlM = new QShortcut(this);
         keyCtrlM->setKey(Qt::CTRL|Qt::Key_M);
 
+        keyF2 = new QShortcut(this);
+        keyF2->setKey(Qt::Key_F2);
+
         keyF3 = new QShortcut(this);
         keyF3->setKey(Qt::Key_F3);
 
         keyCtrlF = new QShortcut(this);
         keyCtrlF->setKey(Qt::CTRL|Qt::Key_F);
 
+        keyEsc = new QShortcut(this);
+        keyEsc->setKey(Qt::Key_Escape);
+
+
         connect(keyCtrlM, &QShortcut::activated, this, &LogViewer::on_toggle_mark);
+        connect(keyEsc, &QShortcut::activated, this, &LogViewer::on_exit_mode);
+        connect(keyF2, &QShortcut::activated, this, &LogViewer::on_goto_next_required_text);
         connect(keyF3, &QShortcut::activated, this, &LogViewer::on_goto_next_mark);
         connect(keyCtrlF, &QShortcut::activated, this, &LogViewer::on_search_text);
     }
@@ -796,7 +810,11 @@ void LogViewer::on_toggle_mark(void)
     {
         QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
         if (current_tab != nullptr)
-            current_tab->ToggleMark(current_tab->GetCurrentIndex());
+        {
+            bool bMark = false;
+            long long id = current_tab->ToggleMark(current_tab->GetCurrentIndex(), bMark);
+            m_currentLogFile->SetMark(id, bMark);
+        }
         else
             trace.Warning("Current tab is not found");
     }
@@ -826,28 +844,78 @@ void LogViewer::on_search_text(void)
     CFuncTracer trace("LogViewer::on_search_text", m_trace);
     try
     {
-        std::string sText = "";
-        QWaitCondition evTextInserted;
-        bool bError = false;
-        SearchForm *searchDialog = new SearchForm([=, &trace, &sText, &evTextInserted, &bError](const std::string& text, bool err)
-                                                {
-                                                    trace.Info("search text : %s", text.c_str());
-                                                      if (  (sText.empty() == false)
-                                                          &&(bError == false))
-                                                      {
-                                                        trace.Info("text : %s", sText.c_str());
-                                                      }
-                                                      else
-                                                          trace.Error("Failed to search text (%s, Error = %s)", sText.c_str(), (bError == true)?"TRUE":"FALSE");
-                                                }, m_trace);
-        searchDialog->show();
+        if (m_searchDialog == nullptr)
+        {
+            m_searchDialog = new SearchForm([=, &trace](const std::string& text, bool err)
+                                                    {
+                                                        trace.Info("search text : %s", text.c_str());
+
+                                                          if (  (text.empty() == false)
+                                                              &&(err == false))
+                                                          {
+                                                              trace.Info("text : %s", text.c_str());
+                                                              QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
+                                                              if (current_tab != nullptr)
+                                                              {
+                                                                  long long id = current_tab->GetModel()->IndicateSearchText(text);
+                                                                  if (id >= 0)
+                                                                  {
+                                                                      m_currentLogFile->SetRequiredText(id, text, true);
+                                                                      m_bSearchActive = true;
+                                                                  }
+                                                              }
+                                                              else
+                                                                  trace.Error("Current tab not found");
+                                                          }
+                                                          else
+                                                          {
+                                                              trace.Error("Failed to search text (%s, Error = %s)", text.c_str(), (err == true)?"TRUE":"FALSE");
+                                                              m_bSearchActive = false;
+                                                          }
+                                                          m_searchDialog->close();
+
+                                                    }, m_trace);
+        }
+        m_searchDialog->show();
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
-
+void LogViewer::on_exit_mode(void)
+{
+    CFuncTracer trace("LogViewer::on_exit_mode", m_trace);
+    try
+    {
+        if (m_bSearchActive == true)
+        {
+            m_bSearchActive = false;
+            m_currentLogFile->SetRequiredText(-1, "", false);
+            update_current_tab();
+        }
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void LogViewer::on_goto_next_required_text(void)
+{
+    CFuncTracer trace("LogViewer::on_goto_next_required_text", m_trace);
+    try
+    {
+        QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
+        if (current_tab != nullptr)
+            current_tab->GotoNextRequiredText();
+        else
+            trace.Warning("Current tab is not found");
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
 void LogViewer::open()
 {
     CFuncTracer trace("LogViewer::open", m_trace);

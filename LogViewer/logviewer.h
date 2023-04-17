@@ -17,6 +17,7 @@
 
 #include "cfunctracer.h"
 #include "ctracer.h"
+#include "searchform.h"
 #include "Logic/clogfile.h"
 
 
@@ -44,8 +45,9 @@ private slots:
     void onTabChanged(int index);
     void on_toggle_mark(void);
     void on_goto_next_mark(void);
+    void on_goto_next_required_text(void);
     void on_search_text(void);
-
+    void on_exit_mode(void);
 private:
     QHBoxLayout *m_hlayout;
     QVBoxLayout *m_vlayout;
@@ -84,10 +86,13 @@ private:
     QCheckBox *cbxWordOnly;
     QComboBox *cbxSearch;
 
+    SearchForm *m_searchDialog;
+
     QShortcut *keyCtrlM; // key used for toggle marks
+    QShortcut *keyF2;    // Goto next search text.
     QShortcut *keyF3;   // key used for goto next mark
     QShortcut *keyCtrlF; // key used for searching
-
+    QShortcut *keyEsc; // Esc key is to stop a mode in first case only search mode.
 
     std::shared_ptr<CTracer> m_trace;
     int m_currentTabIdx;
@@ -97,6 +102,7 @@ private:
     bool m_bWordOnly;
     bool m_bCaseSensitive;
     bool m_bInverseSearch;
+    bool m_bSearchActive;
 
     void init_styles(void);
     void init_createActions(void);

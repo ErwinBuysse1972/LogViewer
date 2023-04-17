@@ -20,6 +20,7 @@ public:
         , m_ThdId(-1)
         , m_ProcId(-1)
         , m_uiTime(0)
+        , m_ID(-1)
     {
 
     }
@@ -42,6 +43,7 @@ public:
         m_ProcId = std::atoi(m_procId.c_str());
         m_tracerLevel = Convert(m_level);
         m_uiTime = CLogEntry::GetUiTime(m_time);
+        m_ID = m_genID++;
     }
     bool operator>(const CLogEntry& item)
     {
@@ -78,6 +80,7 @@ public:
     std::string Class(void) const { return m_classname; }
     std::string FuncName(void) const { return m_funcName; }
     std::string Description(void) const { return m_description; }
+    long long GetID(void) const { return m_ID; }
     void AddDescription(const char *s){ m_description += s;}
     void SetMark(bool bmark){ m_bMarked = bmark;}
     void SetSearchMark(bool required, const std::string& text){ m_bRequiredText = required; m_ReqText = text;}
@@ -111,6 +114,7 @@ public:
         return ((iHour * 3600 + iMinute * 60 + iSecond) *1000 + iMilisecond);
     }
 private:
+    static long long m_genID;
     std::shared_ptr<CTracer> m_trace;
     std::string m_time;
     std::string m_level;
@@ -126,6 +130,7 @@ private:
     int m_ThdId;
     int m_ProcId;
     unsigned long long m_uiTime;
+    long long m_ID;
 };
 
 class CLogFile
@@ -160,6 +165,9 @@ public:
     std::map<std::string, int> GetFunctionOccurences();
     std::map<std::string, int> GetFunctionEntries();
     std::map<std::string, int> GetFunctionExits();
+
+    void SetMark(long long id, bool bMark);
+    void SetRequiredText(long long id, const std::string& text, bool bRequired );
 
     bool Save(const char *filename);
 

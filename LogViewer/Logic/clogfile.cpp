@@ -9,6 +9,9 @@
 #include "cscopedtimer.h"
 #include "cconversion.h"
 
+long long CLogEntry::m_genID = 0;
+
+
 CLogFile::CLogFile(const char* file, std::shared_ptr<CTracer> tracer)
     : m_trace(tracer)
     , m_name(file)
@@ -590,6 +593,48 @@ std::map<std::string, int> CLogFile::GetFunctionExits()
         trace.Error("Exception occurred : %s", ex.what());
     }
     return m_FunctionExits;
+}
+void CLogFile::SetMark(long long id, bool bMark)
+{
+    CFuncTracer trace("CLogFile::SetMark", m_trace, false);
+    try
+    {
+        int count = std::count_if(m_logEntries.begin(), m_logEntries.end(), [=, &id, &bMark](CLogEntry& entry){
+            if (  (entry.GetID() == id)
+                ||(id < 0))
+            {
+                entry.SetMark(bMark);
+                return true;
+            }
+            return false;
+        });
+        trace.Trace("#%ld Marks changed in m_logEntries", count);
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void CLogFile::SetRequiredText(long long id, const std::string& text, bool bRequired )
+{
+    CFuncTracer trace("CLogFile::setRequiredText", m_trace);
+    try
+    {
+        int count = std::count_if(m_logEntries.begin(), m_logEntries.end(), [=, &id, &text, &bRequired](CLogEntry& entry){
+            if (  (entry.GetID() == id)
+                ||(id < 0))
+            {
+                entry.SetSearchMark(bRequired, text);
+                return true;
+            }
+            return false;
+        });
+        trace.Trace("#%ld required text (%s)", count, text.c_str());
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
 }
 
 // Private functions

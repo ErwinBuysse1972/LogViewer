@@ -1,14 +1,19 @@
 #pragma once
 #include "Logic/clogfile.h"
+#include <QObject>
 #include <QAbstractTableModel>
 #include <QGridLayout>
 #include <QTableView>
 #include <QPushButton>
+#include <QStyledItemDelegate>
+#include <QItemDelegate>
 #include <QSortFilterProxyModel>
 #include <QInputDialog>
 #include <QHeaderView>
 #include <QColor>
 #include <QMessageBox>
+#include <QTextEdit>
+#include <QPainter>
 
 enum class eColumns
 {
@@ -22,8 +27,11 @@ enum class eColumns
     eNumOfColumns = 7
 };
 
+
 class QLogFileModel : public QAbstractTableModel
 {
+    Q_OBJECT
+
 private:
     QList<CLogEntry> m_entries;
     std::shared_ptr<CTracer> m_trace;
@@ -42,34 +50,59 @@ public:
     }
     int columnCount(const QModelIndex &) const override
     {
-        CFuncTracer trace("QLogFileModel::columnCount", m_trace);
+        CFuncTracer trace("QLogFileModel::columnCount", m_trace, false);
+        trace.Trace("#Columns : %ld", static_cast<int>(eColumns::eNumOfColumns));
         return static_cast<int>(eColumns::eNumOfColumns);
     }
     QVariant data(const QModelIndex &index, int role) const override
     {
         CFuncTracer trace("QLogFileModel::data", m_trace, false);
         const CLogEntry& entry = m_entries[index.row()];
+        trace.Trace("col:%ld, row:%ld, role:%s"
+                    , index.column()
+                    , index.row()
+                    , (role == Qt::DisplayRole)?"DisplayRole":
+                      (role == Qt::DecorationRole)?"DecorationRole":
+                      (role == Qt::EditRole)?"EditRole":
+                      (role == Qt::ToolTipRole)?"ToolTipRole":
+                      (role == Qt::StatusTipRole)?"StatusTipRole":
+                      (role == Qt::WhatsThisRole)?"WhatsThisRole":
+                      (role == Qt::FontRole)?"WhatsThisRole":
+                      (role == Qt::TextAlignmentRole)?"TextAlignmentRole":
+                      (role == Qt::BackgroundRole)?"BackgroundRole":
+                      (role == Qt::ForegroundRole)?"ForegroundRole":
+                      (role == Qt::CheckStateRole)?"CheckStateRole":
+                      (role == Qt::AccessibleTextRole)?"AccessibleTextRole":
+                      (role == Qt::AccessibleDescriptionRole)?"AccessibleDescriptionRole":
+                      (role == Qt::SizeHintRole)?"SizeHintRole":
+                      (role == Qt::InitialSortOrderRole)?"InitialSortOrderRole":
+                      (role == Qt::DisplayPropertyRole)?"DisplayPropertyRole":
+                      (role == Qt::DecorationPropertyRole)?"DecorationPropertyRole":
+                      (role == Qt::ToolTipPropertyRole)?"ToolTipPropertyRole":
+                      (role == Qt::StatusTipPropertyRole)?"StatusTipPropertyRole":
+                      (role == Qt::WhatsThisPropertyRole)?"WhatsThisPropertyRole":
+                      (role == Qt::UserRole)?"UserRole":
+                      "Unknown");
         if (  (role == Qt::DisplayRole)
             ||(role == Qt::EditRole))
         {
             switch(index.column())
             {
-                case (int)eColumns::eDateTime: return QString::fromStdString(entry.Time());
-                case (int)eColumns::eTraceLevel: return QString::fromStdString(entry.Level());
-                case (int)eColumns::eProc: return QString::fromStdString(std::to_string(entry.GetProcId()));
-                case (int)eColumns::eThread: return QString::fromStdString(std::to_string(entry.GetThreadId()));
-                case (int)eColumns::eClass: return QString::fromStdString(entry.Class());
-                case (int)eColumns::eFunction: return QString::fromStdString(entry.FuncName());
-                case (int)eColumns::eDescription: return QString::fromStdString(entry.Description());
+                case (int)eColumns::eDateTime:
+                    return QString::fromStdString(entry.Time());
+                case (int)eColumns::eTraceLevel:
+                    return QString::fromStdString(entry.Level());
+                case (int)eColumns::eProc:
+                    return QString::fromStdString(std::to_string(entry.GetProcId()));
+                case (int)eColumns::eThread:
+                    return QString::fromStdString(std::to_string(entry.GetThreadId()));
+                case (int)eColumns::eClass:
+                    return QString::fromStdString(entry.Class());
+                case (int)eColumns::eFunction:
+                    return QString::fromStdString(entry.FuncName());
+                case (int)eColumns::eDescription:
+                    return QString::fromStdString(entry.Description());
                 default: return {};
-            }
-        }
-
-        if (role == Qt::FontRole)
-        {
-            if (entry.IsEntryRequired())
-            {
-                trace.Trace("Required text : %s", entry.GetRequiredText().c_str());
             }
         }
 
@@ -84,14 +117,55 @@ public:
             return background;
         }
 
+        if (role == Qt::UserRole)
+        {
+            if (index.row() < m_entries.count())
+            {
+                return QVariant::fromValue<CLogEntry>(m_entries[index.row()]);
+            }
+            else
+                return {};
+        }
+
         return {};
     }
-    QVariant headerData(int section, Qt::Orientation /*orientation*/, int role) const override
+    QVariant headerData(int section, Qt::Orientation orientation, int role) const override
     {
-        CFuncTracer trace("QLogFileModel::headerData", m_trace);
+        CFuncTracer trace("QLogFileModel::headerData", m_trace, false);
         try
         {
-            if ((role != Qt::DisplayRole) || (role != Qt::Horizontal)) return {};
+
+            trace.Trace("Role : %s, orientation : %s, section : %d"
+                        , (role == Qt::DisplayRole)?"DisplayRole":
+                          (role == Qt::DecorationRole)?"DecorationRole":
+                          (role == Qt::EditRole)?"EditRole":
+                          (role == Qt::ToolTipRole)?"ToolTipRole":
+                          (role == Qt::StatusTipRole)?"StatusTipRole":
+                          (role == Qt::WhatsThisRole)?"WhatsThisRole":
+                          (role == Qt::FontRole)?"FontRole":
+                          (role == Qt::TextAlignmentRole)?"TextAlignmentRole":
+                          (role == Qt::ForegroundRole)?"ForegroundRole":
+                          (role == Qt::ForegroundRole)?"ForegroundRole":
+                          (role == Qt::CheckStateRole)?"CheckStateRole":
+                          (role == Qt::AccessibleTextRole)?"AccessibleTextRole":
+                          (role == Qt::AccessibleDescriptionRole)?"AccessibleDescriptionRole":
+                          (role == Qt::SizeHintRole)?"SizeHintRole":
+                          (role == Qt::InitialSortOrderRole)?"InitialSortOrderRole":
+                          (role == Qt::DisplayPropertyRole)?"DisplayPropertyRole":
+                          (role == Qt::DecorationPropertyRole)?"DecorationPropertyRole":
+                          (role == Qt::ToolTipPropertyRole)?"ToolTipPropertyRole":
+                          (role == Qt::StatusTipPropertyRole)?"StatusTipPropertyRole":
+                          (role == Qt::WhatsThisPropertyRole)?"WhatsThisPropertyRole":
+                          (role == Qt::UserRole)?"UserRole":
+                            "Unknown"
+                        , (orientation == Qt::Horizontal)?"Horizontal":
+                          (orientation == Qt::Vertical)?"Vertical":
+                            "Unknown"
+                        , section);
+            if (  (role != Qt::DisplayRole)
+                ||(orientation != Qt::Horizontal))
+                return {};
+
             switch(section)
             {
                 case (int)eColumns::eDateTime: return "Time";
@@ -137,21 +211,29 @@ public:
             trace.Error("Exception occurred : %s", ex.what());
         }
     }
-    void rowToggleMark(const QModelIndex& index)
+    long long rowToggleMark(const QModelIndex& index, bool& bMark)
     {
         CFuncTracer trace("QLogFileModel::rowToggleMark", m_trace);
+        long long id = -1;
         try
         {
             if (index.row() >= m_entries.size())
             {
                 trace.Error("Row does not exist inside the model! (index : %ld)", index);
-                return;
+                return id;
             }
 
+            id = m_entries[index.row()].GetID();
             if (m_entries[index.row()].IsMarked())
+            {
                 m_entries[index.row()].SetMark( false );
+                bMark = false;
+            }
             else
+            {
                 m_entries[index.row()].SetMark( true );
+                bMark = true;
+            }
             QModelIndex first = createIndex(index.row(), 0);
             QModelIndex last = createIndex(index.row(), (int)eColumns::eNumOfColumns);
             emit dataChanged(first, last);
@@ -160,6 +242,7 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        return id;
     }
     std::optional<CLogEntry> getLogEntry(int index) const
     {
@@ -211,17 +294,67 @@ public:
         }
         return -1;
     }
-    void HighlightText(int row, std::string& text, QColor HighLightColor, QColor BackgroundColor)
+    long long IndicateSearchText(const std::string& text)
     {
-        CFuncTracer trace("QLogFileModel::HighlightText", m_trace);
+        CFuncTracer trace("QLogFileModel::IndicateSearchText", m_trace);
+        int iCount = 0;
+        long long id = -1;
         try
         {
-
+            trace.Trace("Text : %s", text.c_str());
+            std::for_each(m_entries.begin(), m_entries.end(), [=, &trace, &text, &iCount, &id](CLogEntry& entry){
+                if (entry.Description().find(text) != std::string::npos)
+                {
+                    entry.SetSearchMark(true, text);
+                    id = entry.GetID();
+                    iCount++;
+                }
+                else
+                    entry.SetSearchMark(false, "");
+            });
+            trace.Trace("entries marked as required : %d", iCount);
         }
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        return id;
+    }
+    int rowGetNextSearchFoundItem(const QModelIndex& currentIdx)
+    {
+        CFuncTracer trace("QLogFileModel::rowGetNextSearchFoundItem", m_trace);
+        try
+        {
+            if (currentIdx.row() < m_entries.size())
+            {
+                // From current position to the end of the file
+                for (int idx = currentIdx.row() + 1; idx < m_entries.size(); idx++)
+                {
+                    if (m_entries[idx].IsEntryRequired() == true)
+                    {
+                        trace.Trace("Next item idx : %ld", idx);
+                        return idx;
+                    }
+                }
+                // From the beginning of the file until the current position
+                for (int idx = 0; idx < currentIdx.row(); idx++)
+                {
+                    if (m_entries[idx].IsEntryRequired() == true)
+                    {
+                        trace.Trace("Next item idx : %ld", idx);
+                        return idx;
+                    }
+                }
+                trace.Error("No next mark found!");
+            }
+            else
+                trace.Error("row is out of range: %d", currentIdx.row());
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occurred : %s", ex.what());
+        }
+        return -1;
     }
     QModelIndex CreateIndex(int row, int column)
     {
@@ -229,12 +362,164 @@ public:
         return createIndex(row, column);
     }
 };
+
+class RichTextDelegate : public QItemDelegate
+{
+        Q_OBJECT
+public:
+    RichTextDelegate(std::shared_ptr<CTracer> tracer, QObject *parent)
+        : QItemDelegate(parent)
+        , m_trace(tracer)
+    {
+        CFuncTracer trace("RichTextDelegate::RichTextDelegate", m_trace);
+    }
+    void paint(QPainter *painter,
+               const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        CFuncTracer trace("RichTextDelegate::paint", m_trace);
+
+        CLogEntry entry = index.data(Qt::UserRole).value<CLogEntry>();
+        trace.Trace("col :%ld, row:%ld, entry: %s",index.column(), index.row(), entry.Time().c_str());
+        trace.Trace("Mark : %s, Required : %s, required text : %s"
+                    , (entry.IsMarked() == true)?"TRUE":"FALSE"
+                    , (entry.IsEntryRequired() == true)?"TRUE":"FALSE"
+                    , (entry.GetRequiredText().c_str()));
+
+        if (   (index.column() == (int)eColumns::eDescription)
+            &&(entry.IsEntryRequired()) )
+        {
+            trace.Trace("text should be placed in red: %s", entry.Description().c_str());
+            painter->save();
+            QStyleOptionViewItem opt = setOptions(index, option);
+            drawBackground(painter, opt, index);
+
+            painter->setFont(opt.font);
+            painter->setPen(Qt::red);
+            opt.backgroundBrush = QBrush(QColor(230,200,200));
+            opt.font.setBold(true);
+            opt.font.setUnderline(true);
+
+            drawBackground(painter, opt, index);
+            painter->setFont(opt.font);
+            painter->drawText(opt.rect, opt.displayAlignment, QString::fromStdString(entry.Description().c_str()));
+            drawFocus(painter, opt, option.rect);
+            painter->restore();
+        }
+        else
+            QItemDelegate::paint(painter, option, index);
+    }
+    QSize sizeHint(const QStyleOptionViewItem &option,
+                  const QModelIndex &index) const
+    {
+        CFuncTracer trace("RichTextDelegate::sizeHint", m_trace);
+
+        return QItemDelegate::sizeHint(option, index);
+    }
+
+    QWidget *createEditor(QWidget *parent,
+                          const QStyleOptionViewItem &option,
+                          const QModelIndex &index) const
+    {
+        CFuncTracer trace("RichTextDelegate::createEditor", m_trace);
+        try
+        {
+            if (index.column() == (int)eColumns::eDescription)
+                return new QTextEdit();
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occurred : %s", ex.what());
+        }
+        return QItemDelegate::createEditor(parent, option, index);
+    }
+    void setEditorData(QWidget *editor, const QModelIndex &index) const
+    {
+        CFuncTracer trace("RichTextDelegate::setEditorData", m_trace);
+        QItemDelegate::setEditorData(editor, index);
+    }
+    void setModelData(QWidget *editor,
+                      QAbstractItemModel *model,
+                      const QModelIndex &index) const
+    {
+        CFuncTracer trace("RichTextDelegate::setModelData", m_trace);
+        try
+        {
+            QLogFileModel *logModel = qobject_cast<QLogFileModel *>(model);
+            if (logModel != nullptr)
+            {
+                auto entry = logModel->getLogEntry(index.row());
+                if(entry)
+                {
+                    if (entry->IsEntryRequired() == true)
+                    {
+                        QTextEdit *editText = qobject_cast<QTextEdit *>(editor);
+                        if (editText)
+                        {
+                            QList<QTextEdit::ExtraSelection> selections;
+                            QTextCharFormat fmt;
+                            fmt.setUnderlineStyle(QTextCharFormat::SingleUnderline);
+                            fmt.setForeground(QBrush(QColor(200,0,0)));
+                            fmt.setUnderlineColor(QColor(200,0,0));
+                            fmt.setBackground(QBrush(QColor(230,200,200)));
+                            QTextCursor cursor = editText->textCursor();
+
+                            while (! (cursor = editText->document()->find(QString::fromStdString(entry->GetRequiredText()), cursor)).isNull())
+                            {
+                                QTextEdit::ExtraSelection sel = {cursor, fmt };
+                                selections.append(sel);
+                            }
+
+                            // set, show, go!
+                            editText->setExtraSelections(selections);
+                        }
+                    }
+                }
+                else
+                    trace.Error("entry is not available for index: %ld", index.row());
+            }
+            else
+                trace.Error("model is not a QLogFileModel!");
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occurred : %s", ex.what());
+        }
+    }
+
+    void updateEditorGeometry(QWidget *editor,
+                              const QStyleOptionViewItem &option,
+                              const QModelIndex &index) const
+    {
+        CFuncTracer trace("RichTextDelegate::updateEditorGeometry", m_trace);
+        QItemDelegate::updateEditorGeometry(editor, option, index);
+    }
+protected:
+    bool eventFilter(QObject *object, QEvent *event)
+    {
+        CFuncTracer trace("RichTextDelegate::eventFilter", m_trace);
+        return QItemDelegate::eventFilter(object, event);
+    }
+    bool editorEvent(QEvent *event, QAbstractItemModel *model,
+                     const QStyleOptionViewItem &option, const QModelIndex &index)
+    {
+        CFuncTracer trace("RichTextDelegate::editorEvent", m_trace);
+        return  QItemDelegate::editorEvent(event, model, option, index);
+    }
+
+
+private:
+    std::shared_ptr<CTracer> m_trace;
+
+};
+
 class QLogFileWidget : public QWidget
 {
+    Q_OBJECT
 public:
     explicit QLogFileWidget(std::shared_ptr<CTracer> tracer, std::vector<CLogEntry> entries, __attribute__((unused))QWidget *parent = nullptr)
         : m_tabindex(-1)
         , m_Layout(nullptr)
+        , m_delegate(nullptr)
         , m_View(nullptr)
         , m_Model(nullptr)
         , m_trace(tracer)
@@ -267,13 +552,16 @@ public:
                 delete m_View;
                 m_View = nullptr;
             }
-
+            if (m_delegate)
+            {
+                delete m_delegate;
+                m_delegate = nullptr;
+            }
             if (m_Model != nullptr)
             {
                 delete m_Model;
                 m_Model = nullptr;
             }
-
         }
         catch(std::exception& ex)
         {
@@ -311,10 +599,10 @@ public:
         CFuncTracer trace("QLogFileWidget::GetCurrentIndex", m_trace);
         return m_View->currentIndex();
     }
-    void ToggleMark(QModelIndex index)
+    long long ToggleMark(QModelIndex index, bool& bMark)
     {
         CFuncTracer trace("QLogFileWidget::ToggleMark", m_trace);
-        m_Model->rowToggleMark(index);
+        return m_Model->rowToggleMark(index, bMark);
     }
     void GotoToNextMark(void)
     {
@@ -334,6 +622,29 @@ public:
                 QMessageBox::warning(this, "WARNING - No Marks", "No next marks were found",
                                      QMessageBox::StandardButton::Ok, QMessageBox::StandardButton::NoButton);
                 trace.Error("No next Mark found!");
+            }
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occured : %s", ex.what());
+        }
+    }
+    void GotoNextRequiredText(void)
+    {
+        CFuncTracer trace("QLogFileWidget::GotoNextRequiredText", m_trace);
+        try
+        {
+            // Find next mark
+            QModelIndex index = m_View->currentIndex();
+            int row = m_Model->rowGetNextSearchFoundItem(index);
+            if (row >= 0)
+            {
+                QModelIndex nextMark = m_Model->CreateIndex(row, 0);
+                m_View->setCurrentIndex(nextMark);
+            }
+            else
+            {
+                trace.Error("No next search found!");
             }
         }
         catch(std::exception& ex)
@@ -372,6 +683,7 @@ private:
     int m_tabindex;
     std::string m_FileName;
     QHBoxLayout *m_Layout;
+    RichTextDelegate *m_delegate;
     QTableView *m_View;
     QLogFileModel *m_Model;
     std::shared_ptr<CTracer> m_trace;
@@ -381,17 +693,21 @@ private:
         CFuncTracer trace("QLogFileWidget::init_createForm", m_trace);
         try
         {
+            m_delegate = new RichTextDelegate(m_trace, this);
             m_View = new QTableView(this);
-            m_View->setSelectionBehavior( QAbstractItemView::SelectRows);
             m_Model = new QLogFileModel(m_trace, this);
             m_Layout = new QHBoxLayout(this);
-            m_Layout->setContentsMargins(0,0,0,0);
-            m_Layout->addWidget(m_View);
+
 
             m_Model->append(entries);
             m_View->setModel(m_Model);
+            m_View->setItemDelegate(m_delegate);
             m_View->resizeColumnsToContents();
             m_View->setStyleSheet("QTableView:disabled{color:grey;}QTableView:enabled{color:black;font-weight:normal;}");
+
+
+            m_Layout->setContentsMargins(0,0,0,0);
+            m_Layout->addWidget(m_View);
         }
         catch(std::exception& ex)
         {
