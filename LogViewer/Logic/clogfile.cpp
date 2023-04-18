@@ -280,14 +280,18 @@ std::map<std::string, bool> CLogFile::GetClasses(void)
 std::map<std::string, bool> CLogFile::GetTracelevels(void)
 {
     CFuncTracer trace("CLogFile::GetTracelevels", m_trace);
+
+
     try
     {
         if (m_TraceLevels.size() == 0)
         {
+
             std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
                 if (m_TraceLevels.find(entry.Level()) == m_TraceLevels.end())
                     m_TraceLevels.insert(std::make_pair(entry.Level(), true));
             });
+            // Mark the tracelevels false if they do not occurs in the filter list
             std::for_each(m_logEntries.begin(), m_logEntries.end(), [=](CLogEntry& entry){
                 if (m_TraceLevels.find(entry.Level()) == m_TraceLevels.end())
                     m_TraceLevels.insert(std::make_pair(entry.Level(), false));
@@ -726,8 +730,10 @@ void CLogFile::parse(void)
     std::ifstream file(m_name);
     try
     {
+        timer.SetTime("Start");
         std::vector<std::string> fields;
         m_logEntries.clear();
+        timer.SetTime("Clear entries");
         while(std::getline(file, m_sLine))
         {
             if (m_sLine.length() == 0)
@@ -876,6 +882,7 @@ void CLogFile::parse(void)
                 }
             }
         }
+        timer.SetTime("End");
     }
     catch(std::exception& ex)
     {

@@ -15,6 +15,8 @@
 #include <QTextEdit>
 #include <QPainter>
 
+#include <list>
+
 enum class eColumns
 {
     eDateTime = 0,
@@ -234,8 +236,10 @@ public:
                 m_entries[index.row()].SetMark( true );
                 bMark = true;
             }
+            trace.Trace("row %ld is changed (%lld)", index.row(), id);
             QModelIndex first = createIndex(index.row(), 0);
             QModelIndex last = createIndex(index.row(), (int)eColumns::eNumOfColumns);
+            trace.Trace("Send signal that the row is changed (first:%ld, %ld  last:%ld, %ld", first.row(), first.column(), last.row(), last.column());
             emit dataChanged(first, last);
         }
         catch(std::exception& ex)
@@ -294,31 +298,51 @@ public:
         }
         return -1;
     }
-    long long IndicateSearchText(const std::string& text)
+    std::list<long long> IndicateSearchText(const std::string& text)
     {
         CFuncTracer trace("QLogFileModel::IndicateSearchText", m_trace);
         int iCount = 0;
-        long long id = -1;
+        int iRow = 0;
+        std::list<long long> ids;
+        std::list<int> rowsChanged;
         try
         {
             trace.Trace("Text : %s", text.c_str());
-            std::for_each(m_entries.begin(), m_entries.end(), [=, &trace, &text, &iCount, &id](CLogEntry& entry){
+            std::for_each(m_entries.begin(), m_entries.end(), [=, &trace, &text, &iCount, &iRow, &ids, &rowsChanged](CLogEntry& entry){
                 if (entry.Description().find(text) != std::string::npos)
                 {
-                    entry.SetSearchMark(true, text);
-                    id = entry.GetID();
-                    iCount++;
+                    if (entry.IsMarked() == false)
+                    {
+                        entry.SetSearchMark(true, text);
+                        ids.push_back(entry.GetID());
+                        rowsChanged.push_back(iRow);
+                        iCount++;
+                    }
                 }
                 else
-                    entry.SetSearchMark(false, "");
+                {
+                    if (entry.IsMarked() == true)
+                    {
+                        entry.SetSearchMark(false, "");
+                        rowsChanged.push_back(iRow);
+                    }
+                }
+                ++iRow;
             });
-            trace.Trace("entries marked as required : %d", iCount);
+            trace.Trace("entries marked as required : %d", ids.size());
+            //Signal which rows are changed
+            std::for_each(rowsChanged.begin(), rowsChanged.end(), [=, &trace](int& row){
+                trace.Trace("row %ld is changed", row);
+                QModelIndex first = createIndex(row, 0);
+                QModelIndex last = createIndex(row, (int)eColumns::eNumOfColumns);
+                emit dataChanged(first, last);
+            });
         }
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
-        return id;
+        return ids;
     }
     int rowGetNextSearchFoundItem(const QModelIndex& currentIdx)
     {
@@ -652,7 +676,19 @@ public:
             trace.Error("Exception occured : %s", ex.what());
         }
     }
-
+    void GotoTopOfTable(void)
+    {
+        CFuncTracer trace("QLogFileWidget::GotoTopOfTable", m_trace);
+        try
+        {
+            QModelIndex top = m_Model->CreateIndex(0,0);
+            m_View->setCurrentIndex(top);
+        }
+        catch(std::exception& ex)
+        {
+            trace.Error("Exception occured : %s", ex.what());
+        }
+    }
 private slots:
     void row_double_click(const QModelIndex &  index)
     {

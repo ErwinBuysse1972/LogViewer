@@ -44,6 +44,11 @@ public:
         m_tracerLevel = Convert(m_level);
         m_uiTime = CLogEntry::GetUiTime(m_time);
         m_ID = m_genID++;
+
+        m_hours = std::atoi(m_time.substr(0, m_time.find_first_of(":")).c_str());
+        m_minutes = std::atoi(m_time.substr(m_time.find_first_of(":") + 1, m_time.find_last_of(":")).c_str());
+        m_seconds = std::atoi(m_time.substr(m_time.find_last_of(":") + 1, m_time.find_first_of(".")).c_str());
+        m_milliseconds = std::atoi(m_time.substr(m_time.find_last_of(".") + 1).c_str());
     }
     bool operator>(const CLogEntry& item)
     {
@@ -89,6 +94,10 @@ public:
     int GetProcId(void) const { return m_ProcId;}
     int GetThreadId(void) const { return m_ThdId;}
     unsigned long long GetTime(void){ return m_uiTime;}
+    int GetTimeHours(void){ return m_hours;}
+    int GetTimeMinutes(void){ return m_minutes;}
+    int GetTimeSeconds(void){ return m_seconds;}
+    int GetTimeMilliseconds(void) { return m_milliseconds;}
     static TracerLevel Convert(std::string level)    {
         if (level.find("TRACE") != std::string::npos) return TracerLevel::TRACER_DEBUG_LEVEL;
         else if (level.find("INFO") != std::string::npos) return TracerLevel::TRACER_INFO_LEVEL;
@@ -106,12 +115,12 @@ public:
 
     static unsigned long long GetUiTime(std::string sTime)
     {
-        int iHour = 0, iMinute = 0, iSecond, iMilisecond;
-        iHour = std::atoi(sTime.substr(0, sTime.find_first_of(":")).c_str());
-        iMinute = std::atoi(sTime.substr(sTime.find_first_of(":") + 1, sTime.find_last_of(":")).c_str());
-        iSecond = std::atoi(sTime.substr(sTime.find_last_of(":") + 1, sTime.find_first_of(".")).c_str());
-        iMilisecond = std::atoi(sTime.substr(sTime.find_last_of(".") + 1).c_str());
-        return ((iHour * 3600 + iMinute * 60 + iSecond) *1000 + iMilisecond);
+        int hours, minutes, milli, seconds;
+        hours = std::atoi(sTime.substr(0, sTime.find_first_of(":")).c_str());
+        minutes = std::atoi(sTime.substr(sTime.find_first_of(":") + 1, sTime.find_last_of(":")).c_str());
+        seconds = std::atoi(sTime.substr(sTime.find_last_of(":") + 1, sTime.find_first_of(".")).c_str());
+        milli = std::atoi(sTime.substr(sTime.find_last_of(".") + 1).c_str());
+        return ((hours * 3600 + minutes * 60 + seconds) *1000 + milli);
     }
 private:
     static long long m_genID;
@@ -130,6 +139,10 @@ private:
     int m_ThdId;
     int m_ProcId;
     unsigned long long m_uiTime;
+    int m_hours;
+    int m_minutes;
+    int m_seconds;
+    int m_milliseconds;
     long long m_ID;
 };
 

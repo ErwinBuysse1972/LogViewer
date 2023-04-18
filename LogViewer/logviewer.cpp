@@ -13,6 +13,7 @@
 #include <QMenu>
 #include <QTextEdit>
 #include <QRegularExpression>
+#include <QTime>
 #include "cfunctracer.h"
 #include "ctracer.h"
 #include "cscopedtimer.h"
@@ -31,6 +32,12 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     , actOpen(nullptr)
     , actClose(nullptr)
     , actSave(nullptr)
+    , toolsMenu(nullptr)
+    , actToggleMark(nullptr)
+    , actGotoNextMark(nullptr)
+    , actClearAllMarks(nullptr)
+    , actSearchText(nullptr)
+    , actFindNextText(nullptr)
     , tabWidget(nullptr)
     , gbxLevel(nullptr)
     , lblLevel(nullptr)
@@ -65,27 +72,41 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     , m_bSearchActive(false)
 {
     CFuncTracer trace("LogViewer::LogViewer", m_trace);
+    CScopeTimer timer("LogViewer::LogViewer", 0, [=, &trace](const std::string& msg)
+                      {
+                          trace.Info("Timings : ");
+                          trace.Info("   %s", msg.c_str());
+                      });
     try
     {
+        timer.SetTime("start");
         m_vlayout = new QVBoxLayout();
         m_hlayout = new QHBoxLayout();
 
-        init_createActions();
-        init_createMenus();
 
+        init_createActions();
+        timer.SetTime("created actions");
+        init_createMenus();
+        timer.SetTime("create menus");
         init_createLevelFilteringGroupBox();
+        timer.SetTime("create level group box");
         init_createFunctionFilteringGroupBox();
+        timer.SetTime("create function group box");
         init_createFilterGroupBox();
+        timer.SetTime("create filter group box");
         init_createShortCut();
+        timer.SetTime("Create shortcuts");
 
         init_retranslateUi();
         init_styles();
+        timer.SetTime("Styles");
 
         tabWidget = new QTabWidget(this);
         m_vlayout->addLayout(m_hlayout);
         m_vlayout->addWidget(tabWidget);
 
         setLayout(m_vlayout);
+        timer.SetTime("Create tabwidget and add to layout");
 
         connect(cbxWordOnly, &QCheckBox::stateChanged, this, &LogViewer::on_cbxWordOnly_stateChanged);
         connect(cbxCaseSensitive, &QCheckBox::stateChanged, this, &LogViewer::on_cbxCaseSensitive_stateChanged);
@@ -95,6 +116,7 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
         connect(btnFunctionFilter, &QPushButton::clicked, this, &LogViewer::onFunctionFilter_clicked);
         connect(btnFilter, &QPushButton::clicked,this, &LogViewer::onSearchFilter_clicked);
         connect(btnClearFilter, &QPushButton::clicked, this, &LogViewer::onClearFilter_clicked);
+        timer.SetTime("connect signals");
     }
     catch(std::exception& ex)
     {
@@ -142,6 +164,37 @@ LogViewer::~LogViewer()
             delete actSave;
             actSave = nullptr;
         }
+        if (toolsMenu != nullptr)
+        {
+            delete toolsMenu;
+            toolsMenu = nullptr;
+        }
+        if (actToggleMark != nullptr)
+        {
+            delete actToggleMark;
+            actToggleMark= nullptr;
+        }
+        if (actGotoNextMark != nullptr)
+        {
+            delete actGotoNextMark;
+            actGotoNextMark = nullptr;
+        }
+        if (actClearAllMarks != nullptr)
+        {
+            delete actClearAllMarks;
+            actClearAllMarks= nullptr;
+        }
+        if (actSearchText != nullptr)
+        {
+            delete actSearchText;
+            actSearchText = nullptr;
+        }
+        if (actFindNextText != nullptr)
+        {
+            delete actFindNextText;
+            actFindNextText = nullptr;
+        }
+
         if (tabWidget != nullptr)
         {
             delete tabWidget;
@@ -338,6 +391,28 @@ void LogViewer::init_createActions(void)
         actSave->setShortcut(QKeySequence::Save);
         actSave->setStatusTip(tr("Save the filtered log file"));
         connect(actSave, &QAction::triggered, this, &LogViewer::save);
+
+        actToggleMark = new QAction(tr("Toggle Mark \tCtrl+M"));
+        actToggleMark->setStatusTip(tr("Add/Delete mark at that line"));
+        connect(actToggleMark, &QAction::triggered, this, &LogViewer::on_toggle_mark);
+
+        actGotoNextMark = new QAction(tr("Find next Mark \tF3"));
+        actGotoNextMark->setStatusTip(tr("Jump to next mark"));
+        connect(actGotoNextMark, &QAction::triggered, this, &LogViewer::on_goto_next_mark);
+
+        actClearAllMarks = new QAction(tr("Exit Mark/Search mode \tESC"));
+        actClearAllMarks->setStatusTip(tr("Remove all marks and search text signs"));
+        connect(actClearAllMarks, &QAction::triggered, this, &LogViewer::on_exit_mode);
+
+        actSearchText = new QAction(tr("Mark text \tCtrl+F"));
+        actSearchText->setStatusTip(tr("Find text in the description and mark it"));
+        connect(actSearchText, &QAction::triggered, this, &LogViewer::on_search_text);
+
+        actFindNextText = new QAction(tr("Find next text \tF2"));
+        actFindNextText->setStatusTip(tr("Find the next text search item in the file and jumpt to it"));
+        connect(actFindNextText, &QAction::triggered, this, &LogViewer::on_goto_next_required_text);
+
+
     }
     catch(std::exception& ex)
     {
@@ -355,6 +430,14 @@ void LogViewer::init_createMenus(void)
         fileMenu->addAction(actOpen);
         fileMenu->addAction(actClose);
         fileMenu->addAction(actSave);
+
+        toolsMenu = new QMenu(tr("&Tools"));
+        menuBar->addMenu(toolsMenu);
+        toolsMenu->addAction(actToggleMark);
+        toolsMenu->addAction(actGotoNextMark);
+        toolsMenu->addAction(actSearchText);
+        toolsMenu->addAction(actClearAllMarks);
+
         m_vlayout->setMenuBar(menuBar);
     }
     catch(std::exception& ex)
@@ -380,16 +463,19 @@ void LogViewer::init_createFilterGroupBox(void)
         lblSearch->setGeometry(QRect(10, 80, 51, 25));
         cbxInversesearch = new QCheckBox(gbxFilter);
         cbxInversesearch->setObjectName("cbxInversesearch");
-        cbxInversesearch->setGeometry(QRect(280, 40, 131, 23));
+        cbxInversesearch->setGeometry(QRect(280, 40, 121, 23));
         btnFilter = new QPushButton(gbxFilter);
         btnFilter->setObjectName("btnFilter");
-        btnFilter->setGeometry(QRect(690, 110, 89, 25));
+        btnFilter->setGeometry(QRect(750, 110, 130, 25));
         btnClearFilter = new QPushButton(gbxFilter);
         btnClearFilter->setObjectName("btnClearFilter");
-        btnClearFilter->setGeometry(QRect(790, 110, 89, 25));
+        btnClearFilter->setGeometry(QRect(670, 110, 75, 25));
         lblStartTime = new QLabel(gbxFilter);
         lblStartTime->setObjectName("lblStartTime");
         lblStartTime->setGeometry(QRect(440, 40, 81, 26));
+        dtStartTime = new QTimeEdit(gbxFilter);
+        dtStartTime->setObjectName("dtStartTime");
+        dtStartTime->setGeometry(QRect(530, 40, 118, 26));
         lblEndTime = new QLabel(gbxFilter);
         lblEndTime->setObjectName("lblEndTime");
         lblEndTime->setGeometry(QRect(680, 40, 71, 26));
@@ -441,6 +527,9 @@ void LogViewer::init_createFunctionFilteringGroupBox(void)
         btnFunctionFilter = new QPushButton(gbxFunctionFiltering);
         btnFunctionFilter->setObjectName("btnFunctionFilter");
         btnFunctionFilter->setGeometry(QRect(470, 110, 141, 25));
+        btnClearFunctionFilter = new QPushButton(gbxFunctionFiltering);
+        btnClearFunctionFilter->setObjectName("btnClearFunctionFilter");
+        btnClearFunctionFilter->setGeometry(QRect(380,110, 75,25));
         m_hlayout->addWidget(gbxFunctionFiltering);
     }
     catch(std::exception& ex)
@@ -472,7 +561,10 @@ void LogViewer::init_createLevelFilteringGroupBox(void)
         cboLevel->setModel(cbo_levelModel);
         btnLevelFiltering = new QPushButton(gbxLevel);
         btnLevelFiltering->setObjectName("btnLevelFiltering");
-        btnLevelFiltering->setGeometry(QRect(130, 100, 141, 25));
+        btnLevelFiltering->setGeometry(QRect(130, 110, 141, 25));
+        btnClearLevelFiltering = new QPushButton(gbxLevel);
+        btnClearLevelFiltering->setObjectName("btnClearFilter");
+        btnClearLevelFiltering->setGeometry(QRect(50,110,75,25));
         m_hlayout->addWidget(gbxLevel);
     }
     catch(std::exception& ex)
@@ -522,21 +614,23 @@ void LogViewer::init_retranslateUi(void)
         cbxCaseSensitive->setText(QCoreApplication::translate("LogViewer", "Case Sensitive", nullptr));
         lblSearch->setText(QCoreApplication::translate("LogViewer", "Search", nullptr));
         cbxInversesearch->setText(QCoreApplication::translate("LogViewer", "Inverse search", nullptr));
-        btnFilter->setText(QCoreApplication::translate("LogViewer", "Filter", nullptr));
-        btnClearFilter->setText(QCoreApplication::translate("LogViewer", "Clear Filter", nullptr));
+        btnFilter->setText(QCoreApplication::translate("LogViewer", "Text Filter", nullptr));
+        btnClearFilter->setText(QCoreApplication::translate("LogViewer", "Clear", nullptr));
         lblStartTime->setText(QCoreApplication::translate("LogViewer", "Start time", nullptr));
         lblEndTime->setText(QCoreApplication::translate("LogViewer", "End time", nullptr));
         dtEndTime->setDisplayFormat(QCoreApplication::translate("LogViewer", "HH:mm:ss", nullptr));
+        dtStartTime->setDisplayFormat(QCoreApplication::translate("LogViewer", "HH:mm:ss", nullptr));
         cbxWordOnly->setText(QCoreApplication::translate("LogViewer", "Word Only", nullptr));
 
         gbxFunctionFiltering->setTitle(QCoreApplication::translate("LogViewer", "Function Filtering", nullptr));
         lblClass->setText(QCoreApplication::translate("LogViewer", "Class", nullptr));
-        lblFunction->setText(QCoreApplication::translate("LogViewer", "Function", nullptr));
+        lblFunction->setText(QCoreApplication::translate("LogViewer", "Text Function", nullptr));
         btnFunctionFilter->setText(QCoreApplication::translate("LogViewer", "Function Filter", nullptr));
-
+        btnClearFunctionFilter->setText(QCoreApplication::translate("LogViewer", "Clear", nullptr));
         gbxLevel->setTitle(QCoreApplication::translate("LogViewer", "Level Filtering", nullptr));
         lblLevel->setText(QCoreApplication::translate("LogViewer", "Level", nullptr));
         btnLevelFiltering->setText(QCoreApplication::translate("LogViewer", "Level Filter", nullptr));
+        btnClearLevelFiltering->setText(QCoreApplication::translate("LogViewer", "Clear", nullptr));
 
     }
     catch(std::exception& ex)
@@ -610,13 +704,42 @@ void LogViewer::update_traceLevels(void)
 void LogViewer::update_current_tab(void)
 {
     CFuncTracer trace("LogViewer::update_current_tab", m_trace);
+    CScopeTimer timer("LogViewer::update_current_tab", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
     try
     {
+        timer.SetTime("Start");
         QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
+        timer.SetTime("Get current tab");
         std::vector<CLogEntry> lines = m_currentLogFile->GetEntries();
+        timer.SetTime("Get the lines");
         trace.Trace("Lines : %ld", lines.size());
         current_tab->GetModel()->clear();
+        timer.SetTime("clear the model");
         current_tab->GetModel()->append(lines);
+        timer.SetTime("Append lines to model");
+        current_tab->GotoTopOfTable();
+
+        if (lines.size() >= 1)
+        {
+            dtStartTime->setTime(QTime(lines[0].GetTimeHours(),
+                                       lines[0].GetTimeMinutes(),
+                                       lines[0].GetTimeSeconds(),
+                                       lines[0].GetTimeMilliseconds()));
+            dtEndTime->setTime(QTime(lines[0].GetTimeHours(),
+                                     lines[0].GetTimeMinutes(),
+                                     lines[0].GetTimeSeconds(),
+                                     lines[0].GetTimeMilliseconds()));
+            if (lines.size() >= 2)
+            {
+                dtEndTime->setTime(QTime(lines[(lines.size() - 1)].GetTimeHours(),
+                                         lines[(lines.size() - 1)].GetTimeMinutes(),
+                                         lines[(lines.size() - 1)].GetTimeSeconds(),
+                                         lines[(lines.size() - 1)].GetTimeMilliseconds()));
+            }
+        }
     }
     catch(std::exception& ex)
     {
@@ -770,6 +893,9 @@ void LogViewer::onClearFilter_clicked(void)
     try
     {
         m_currentLogFile->ClearFilter();
+        onFunctionFilter_clicked();
+        onLevelFilter_clicked();
+        // clear cbo text and add filter item in the combo box
         // update the GUI
         update_current_tab();
     }
@@ -778,6 +904,41 @@ void LogViewer::onClearFilter_clicked(void)
         trace.Error("Exception occurred: %s", ex.what());
     }
 }
+void LogViewer::onClearLevelFilter_clicked(void)
+{
+    CFuncTracer trace("LogViewer::onClearLevelFilter_clicked", m_trace);
+    try
+    {
+        m_currentLogFile->ClearFilter();
+        onFunctionFilter_clicked();
+        onSearchFilter_clicked();
+
+        // update the GUI
+        update_current_tab();
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occured : %s", ex.what());
+    }
+}
+void LogViewer::onClearFunctionFilter_clicked(void)
+{
+    CFuncTracer trace("LogViewer::onClearFunctionFilter_clicked", m_trace);
+    try
+    {
+        m_currentLogFile->ClearFilter();
+        onSearchFilter_clicked();
+        onLevelFilter_clicked();
+
+        // update the GUI
+        update_current_tab();
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occured : %s", ex.what());
+    }
+}
+
 void LogViewer::onTabChanged(int index)
 {
     CFuncTracer trace("LogViewer::onTabChanged", m_trace);
@@ -795,6 +956,7 @@ void LogViewer::onTabChanged(int index)
                 update_classFilter();
                 update_functionFilter();
                 update_traceLevels();
+                update_current_tab();
             }
         }
     }
@@ -857,10 +1019,12 @@ void LogViewer::on_search_text(void)
                                                               QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
                                                               if (current_tab != nullptr)
                                                               {
-                                                                  long long id = current_tab->GetModel()->IndicateSearchText(text);
-                                                                  if (id >= 0)
+                                                                  std::list<long long> ids = current_tab->GetModel()->IndicateSearchText(text);
+                                                                  if (ids.size() > 0)
                                                                   {
-                                                                      m_currentLogFile->SetRequiredText(id, text, true);
+                                                                      std::for_each(ids.begin(), ids.end(), [=, &text](long long& id){
+                                                                          m_currentLogFile->SetRequiredText(id, text, true);
+                                                                      });
                                                                       m_bSearchActive = true;
                                                                   }
                                                               }
@@ -929,12 +1093,15 @@ void LogViewer::open()
         QString filename = QFileDialog::getOpenFileName(this, "Open log file", QDir::currentPath(),"All files (*.*) ;; Log files (*.log)");
         if (!filename.isNull())
         {
+            timer.SetTime("Start filename get from dialog");
             trace.Trace("Filename : %s" , filename.toStdString().c_str());
             std::shared_ptr<CLogFile> file = std::make_shared<CLogFile>(filename.toStdString().c_str(), m_trace);
+            timer.SetTime("constructed CLogfile");
             std::vector<CLogEntry> lines = file->GetEntries();
             trace.Trace("Lines : %ld", lines.size());
+            timer.SetTime("Get lines of the file");
             QWidget *viewer = new QLogFileWidget(m_trace, lines, this);
-
+            timer.SetTime("viewer created");
             if (m_mpLogFiles.find(file->Name()) == m_mpLogFiles.end())
             {
                 m_mpLogFiles.insert(std::make_pair(file->Name(), file));
@@ -944,9 +1111,10 @@ void LogViewer::open()
                     m_currentTabIdx = 0;
                 }
             }
-            ((QLogFileWidget*)viewer)->SetTabIndex(tabWidget->indexOf(viewer));
             ((QLogFileWidget*)viewer)->SetFileName(filename.toStdString());
             tabWidget->addTab(viewer, filename);
+            ((QLogFileWidget*)viewer)->SetTabIndex(tabWidget->indexOf(viewer));
+            timer.SetTime("tabwidget added");
         }
     }
     catch(std::exception& ex)
@@ -1008,7 +1176,8 @@ void LogViewer::close()
     CFuncTracer trace("LogViewer::close", m_trace);
     try
     {
-/*        QLogFileWidget *QLogFile = dynamic_cast<QLogFileWidget *>(tabWidget[m_currentTabIdx]);
+
+        QLogFileWidget *QLogFile = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
         if (QLogFile != nullptr)
         {
             auto itFile = m_mpLogFiles.find(m_currentLogFile->Name());
@@ -1016,7 +1185,8 @@ void LogViewer::close()
             {
                 if (QLogFile->GetFilename() == m_currentLogFile->Name())
                 {
-                    tabWidget->removeTab(QLogFile->GetTabIndex());
+                    int tab_index = QLogFile->GetTabIndex();
+                    tabWidget->removeTab(tab_index);
                     m_mpLogFiles.erase(itFile);
                 }
                 else
@@ -1026,7 +1196,7 @@ void LogViewer::close()
                 trace.Error("Currentlogfile %s is not found inside the map", m_currentLogFile->Name());
         }
         else
-            trace.Error("QLogFile is not of the correct type");*/
+            trace.Error("QLogFile is not of the correct type");
     }
     catch(std::exception& ex)
     {

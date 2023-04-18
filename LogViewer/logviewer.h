@@ -41,6 +41,8 @@ private slots:
     void onSearchFilter_clicked(void);
     void onProcThreadIdFilter_clicked(void);
     void onClearFilter_clicked(void);
+    void onClearLevelFilter_clicked(void);
+    void onClearFunctionFilter_clicked(void);
 
     void onTabChanged(int index);
     void on_toggle_mark(void);
@@ -57,6 +59,14 @@ private:
     QAction *actOpen;
     QAction *actClose;
     QAction *actSave;
+    QMenu *toolsMenu;
+    QAction *actToggleMark;
+    QAction *actGotoNextMark;
+    QAction *actClearAllMarks;
+    QAction *actSearchText;
+    QAction *actFindNextText;
+
+
     QTabWidget *tabWidget;
 
     QGroupBox *gbxLevel;
@@ -64,6 +74,7 @@ private:
     QComboBox *cboLevel;
     QCheckableModel *cbo_levelModel;
     QPushButton *btnLevelFiltering;
+    QPushButton *btnClearLevelFiltering;
 
     QGroupBox *gbxFunctionFiltering;
     QComboBox *cboClass;
@@ -73,6 +84,7 @@ private:
     QComboBox *cboFunction;
     QCheckableModel *cboFunctionModel;
     QPushButton *btnFunctionFilter;
+    QPushButton *btnClearFunctionFilter;
 
     QGroupBox *gbxFilter;
     QCheckBox *cbxCaseSensitive;
@@ -81,6 +93,7 @@ private:
     QPushButton *btnFilter;
     QPushButton *btnClearFilter;
     QLabel *lblStartTime;
+    QTimeEdit *dtStartTime;
     QLabel *lblEndTime;
     QTimeEdit *dtEndTime;
     QCheckBox *cbxWordOnly;

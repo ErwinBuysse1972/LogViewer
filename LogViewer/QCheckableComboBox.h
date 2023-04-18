@@ -29,12 +29,14 @@ public:
     }
     int rowCount(const QModelIndex &) const override
     {
-        CFuncTracer trace("QCheckableModel::rowCount", m_trace);
+        CFuncTracer trace("QCheckableModel::rowCount", m_trace, false);
+        trace.Trace("#rowcount : %ld", m_stdItems.size());
         return m_stdItems.size();
     }
     int columnCount(const QModelIndex &) const override
     {
-        CFuncTracer trace("QCheckableModel::columnCount", m_trace);
+        CFuncTracer trace("QCheckableModel::columnCount", m_trace, false);
+        trace.Trace("count : %ld", 1);
         return 1;
     }
     int GetIndex(std::string sText)
@@ -78,6 +80,7 @@ public:
         try
         {
             std::for_each(m_stdItems.begin(), m_stdItems.end(), [=,&UnselectedItems](std::pair<int, QStandardItem*> p){
+
                 if (p.second->data(Qt::CheckStateRole) == Qt::Unchecked)
                     UnselectedItems.push_back(p.second->text().toStdString());
             });
