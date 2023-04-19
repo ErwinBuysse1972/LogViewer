@@ -237,8 +237,8 @@ public:
                 bMark = true;
             }
             trace.Trace("row %ld is changed (%lld)", index.row(), id);
-            QModelIndex first = createIndex(index.row(), 0);
-            QModelIndex last = createIndex(index.row(), (int)eColumns::eNumOfColumns);
+            QModelIndex first = createIndex((index.row() >  1)?(index.row() - 1) : 0, 0);
+            QModelIndex last = createIndex(((index.row() + 2) < m_entries.size())?(index.row() + 1) : index.row(), (int)eColumns::eNumOfColumns);
             trace.Trace("Send signal that the row is changed (first:%ld, %ld  last:%ld, %ld", first.row(), first.column(), last.row(), last.column());
             emit dataChanged(first, last);
         }

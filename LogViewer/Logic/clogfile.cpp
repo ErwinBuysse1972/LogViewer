@@ -239,7 +239,7 @@ std::map<std::string, bool> CLogFile::GetFunctions(void)
             std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
                 std::string fullFunctionName = entry.Class() + "::" + entry.FuncName();
                 if (m_Functions.find(fullFunctionName) == m_Functions.end())
-                    m_Functions.insert(std::make_pair(fullFunctionName, true));
+                    m_Functions.insert(std::make_pair(fullFunctionName, (entry.IsFunctionFiltered() == false)));
             });
             std::for_each(m_logEntries.begin(), m_logEntries.end(), [=](CLogEntry& entry){
                 std::string fullFunctionName = entry.Class() + "::" + entry.FuncName();
@@ -247,6 +247,9 @@ std::map<std::string, bool> CLogFile::GetFunctions(void)
                     m_Functions.insert(std::make_pair(fullFunctionName, false));
             });
         }
+
+        for (std::pair<std::string, bool> p : m_Functions)
+            trace.Trace("%s : %s", p.first.c_str(), (p.second == true)?"CHECKED":"NOT_CHECKED");
     }
     catch(std::exception& ex)
     {
@@ -263,7 +266,7 @@ std::map<std::string, bool> CLogFile::GetClasses(void)
         {
             std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
                 if (m_Classes.find(entry.Class()) == m_Classes.end())
-                    m_Classes.insert(std::make_pair(entry.Class(), true));
+                    m_Classes.insert(std::make_pair(entry.Class(), (entry.IsClassFiltered() == false)));
             });
             std::for_each(m_logEntries.begin(), m_logEntries.end(), [=](CLogEntry& entry){
                 if (m_Classes.find(entry.Class()) == m_Classes.end())
@@ -429,13 +432,13 @@ void CLogFile::SetProcIdFilter(std::vector<int> ProcIdFiters)
     }
 
 }
-void CLogFile::SetClassNameFilter(std::vector<std::string> classes)
+void CLogFile::SetClassNameFilter(void)
 {
     CFuncTracer trace("CLogFile::SetClassNameFilter", m_trace);
     try
     {
         m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
-                                    return Contains<std::string>(classes, entry.Class());
+                                    return entry.IsClassFiltered();
                                 }), m_filteredEntries.end());
     }
     catch(std::exception& ex)
@@ -443,13 +446,13 @@ void CLogFile::SetClassNameFilter(std::vector<std::string> classes)
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
-void CLogFile::SetFunctionFilter(std::vector<std::string> functions)
+void CLogFile::SetFunctionFilter(void)
 {
     CFuncTracer trace("CLogFile::SetFunctionFilter", m_trace);
     try
     {
         m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
-                                    return Contains<std::string>(functions, entry.FuncName());
+                                    return entry.IsFunctionFiltered();
                                 }), m_filteredEntries.end());
     }
     catch(std::exception& ex)
@@ -466,14 +469,85 @@ void CLogFile::ClearFilter(void)
         m_filteredEntries.clear();
         std::copy(m_logEntries.begin(), m_logEntries.end(),
                   std::back_inserter(m_filteredEntries));
-        m_Functions.clear();
-        m_Classes.clear();
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
 
+}
+void CLogFile::FunctionFilterClear(void)
+{
+    CFuncTracer trace("CLogFile::FunctionFilterClear", m_trace);
+    try
+    {
+        m_Functions.clear();
+
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void CLogFile::LevelFilterClear(void)
+{
+    CFuncTracer trace("CLogFile::LevelFilterClear", m_trace);
+    try
+    {
+        m_Classes.clear();
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void CLogFile::UpdateClassFunctions(bool bFiltered, const std::string& classname)
+{
+    CFuncTracer trace("CLogFile::UpdateClassFunctions", m_trace);
+    try
+    {
+        trace.Trace("classname : %s, bFiltered : %s", classname.c_str(), (bFiltered == true)?"TRUE":"FALSE");
+        if (m_Functions.size() == 0)
+            GetFunctions();
+
+        //Update the functions
+        std::for_each(m_Functions.begin(), m_Functions.end(), [=, &classname, &bFiltered, &trace](std::pair<std::string, bool> p)
+        {
+            std::string sFind = classname + "::";
+            if (p.first.find(sFind)!= std::string::npos)
+            {
+                bool bvalue = (bFiltered == false);
+                trace.Trace("function(%s) found (%s) -> bFiltered: %s", p.first.c_str(), sFind.c_str(), (bvalue == true)?"NOT FILTERED" : "FILTERED");
+                m_Functions[p.first] = bvalue;
+            }
+        });
+        // Update the class
+        if (m_Classes.find(classname) != m_Classes.end())
+        {
+            m_Classes[classname] = (bFiltered == false);
+        }
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void CLogFile::UpdateFunctionName(bool bFiltered, const std::string& fullFunctionName)
+{
+    CFuncTracer trace("CLogFile::UpdateClassNames", m_trace);
+    try
+    {
+        trace.Trace("FunctionName : %s, bFiltered : %s", fullFunctionName.c_str(), (bFiltered == true)?"TRUE" : "FALSE");
+        if (m_Functions.size() == 0)
+            GetFunctions();
+
+        if (m_Functions.find(fullFunctionName) != m_Functions.end())
+            m_Functions[fullFunctionName] = (bFiltered == false);
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
 }
 bool CLogFile::Save(const char *filename)
 {
@@ -603,6 +677,7 @@ void CLogFile::SetMark(long long id, bool bMark)
     CFuncTracer trace("CLogFile::SetMark", m_trace, false);
     try
     {
+        trace.Info("id : %ld, bMark : %s", id, (bMark == true)?"TRUE" : "FALSE");
         int count = std::count_if(m_logEntries.begin(), m_logEntries.end(), [=, &id, &bMark](CLogEntry& entry){
             if (  (entry.GetID() == id)
                 ||(id < 0))

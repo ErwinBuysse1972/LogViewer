@@ -37,6 +37,8 @@ public:
         , m_ReqText("")
         , m_bMarked(false)
         , m_bRequiredText(false)
+        , m_bFunctionFiltered(false)
+        , m_bClassFiltered(false)
     {
         CFuncTracer trace("CLogEntry::CLogEntry", m_trace, false);
         m_ThdId = std::atoi(m_threadId.c_str());
@@ -89,6 +91,8 @@ public:
     void AddDescription(const char *s){ m_description += s;}
     void SetMark(bool bmark){ m_bMarked = bmark;}
     void SetSearchMark(bool required, const std::string& text){ m_bRequiredText = required; m_ReqText = text;}
+    void FilterFunction(bool bFiltered){ m_bFunctionFiltered = bFiltered;}
+    void FilterClass(bool bFiltered){ m_bClassFiltered = bFiltered;}
 
     TracerLevel GetLevel(void){ return m_tracerLevel;}
     int GetProcId(void) const { return m_ProcId;}
@@ -111,6 +115,9 @@ public:
     unsigned long GetDescriptionLength(){ return m_description.length();}
     bool IsMarked(void) const{ return m_bMarked;}
     bool IsEntryRequired(void) const { return m_bRequiredText; }
+    bool IsClassFiltered(void) const { return m_bClassFiltered; }
+    bool IsFunctionFiltered(void) const{ return m_bFunctionFiltered;}
+
     std::string GetRequiredText(void) const{ return m_ReqText; }
 
     static unsigned long long GetUiTime(std::string sTime)
@@ -136,6 +143,8 @@ private:
     TracerLevel m_tracerLevel;
     bool m_bMarked;
     bool m_bRequiredText;
+    bool m_bFunctionFiltered;
+    bool m_bClassFiltered;
     int m_ThdId;
     int m_ProcId;
     unsigned long long m_uiTime;
@@ -168,9 +177,11 @@ public:
     void SetLevelFilter(std::vector<TracerLevel> LevelFilters);
     void SetThreadIdFilter(std::vector<int> ThreadIdFilters);
     void SetProcIdFilter(std::vector<int> ProcIdFiters);
-    void SetClassNameFilter(std::vector<std::string> classes);
-    void SetFunctionFilter(std::vector<std::string> functions);
+    void SetClassNameFilter(void);
+    void SetFunctionFilter(void);
     void ClearFilter(void);
+    void FunctionFilterClear(void);
+    void LevelFilterClear(void);
     unsigned long GetMaxDescLength(){ return m_maxDescLength;}
     unsigned long GetMaxClassLength(){ return m_maxClassLength;}
     unsigned long GetMaxFuncLength(){ return m_maxFuncLength; }
@@ -181,7 +192,8 @@ public:
 
     void SetMark(long long id, bool bMark);
     void SetRequiredText(long long id, const std::string& text, bool bRequired );
-
+    void UpdateClassFunctions(bool bFiltered, const std::string& classname);
+    void UpdateFunctionName(bool bFiltered, const std::string& fullFunctionName);
     bool Save(const char *filename);
 
     bool IsTimeAvailable(void){ return (m_TimeIdx >= 0);}

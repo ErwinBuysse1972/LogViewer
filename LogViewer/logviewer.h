@@ -50,6 +50,8 @@ private slots:
     void on_goto_next_required_text(void);
     void on_search_text(void);
     void on_exit_mode(void);
+    void on_cboClass_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int> roles);
+    void on_cboFunction_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int> roles);
 private:
     QHBoxLayout *m_hlayout;
     QVBoxLayout *m_vlayout;

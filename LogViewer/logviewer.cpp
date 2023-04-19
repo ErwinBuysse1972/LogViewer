@@ -513,6 +513,8 @@ void LogViewer::init_createFunctionFilteringGroupBox(void)
         cboClass->setGeometry(QRect(110, 40, 501, 25));
         cbo_classModel = new QCheckableModel(m_trace);
         cboClass->setModel(cbo_classModel);
+        connect(cbo_classModel, &QCheckableModel::dataChanged, this, &LogViewer::on_cboClass_checkbox_changed);
+
         lblClass = new QLabel(gbxFunctionFiltering);
         lblClass->setObjectName("lblClass");
         lblClass->setGeometry(QRect(40, 50, 67, 25));
@@ -524,6 +526,8 @@ void LogViewer::init_createFunctionFilteringGroupBox(void)
         cboFunction->setGeometry(QRect(110, 70, 501, 25));
         cboFunctionModel = new QCheckableModel(m_trace);
         cboFunction->setModel(cboFunctionModel);
+        connect(cboFunctionModel, &QCheckableModel::dataChanged, this, &LogViewer::on_cboFunction_checkbox_changed);
+
         btnFunctionFilter = new QPushButton(gbxFunctionFiltering);
         btnFunctionFilter->setObjectName("btnFunctionFilter");
         btnFunctionFilter->setGeometry(QRect(470, 110, 141, 25));
@@ -811,7 +815,6 @@ void LogViewer::onFunctionFilter_clicked(void)
     CFuncTracer trace("LogViewer::onFunctionFilter_clicked", m_trace);
     try
     {
-        std::vector<std::string> unselectedFunctions = cboFunctionModel->GetUnselectedItems();
         std::vector<std::string> unselectedClasses = cbo_classModel->GetUnselectedItems();
 
         m_currentLogFile->ClearFilter();
@@ -893,6 +896,7 @@ void LogViewer::onClearFilter_clicked(void)
     try
     {
         m_currentLogFile->ClearFilter();
+
         onFunctionFilter_clicked();
         onLevelFilter_clicked();
         // clear cbo text and add filter item in the combo box
@@ -1080,6 +1084,53 @@ void LogViewer::on_goto_next_required_text(void)
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
+void LogViewer::on_cboClass_checkbox_changed(const QModelIndex& topLeft, const QModelIndex& bottomRight, QList<int> roles)
+{
+    CFuncTracer trace("LogViewer::on_cboClass_checkbox_changed", m_trace);
+    try
+    {
+
+        std::string sName = cboClass->itemText(topLeft.row()).toStdString();
+        bool bChecked = (cboClass->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
+        if (bChecked == false)
+        {
+            // Set all the functions that contains this classname to false
+            m_currentLogFile->UpdateClassFunctions(true, sName);
+        }
+        else
+        {
+            // Set all the functions that contains this classname to true
+            m_currentLogFile->UpdateClassFunctions(false, sName);
+        }
+
+        // Update of the function filter is necessary to update the different states of the checkboxes
+        //    inside the combo box of the function.
+        update_functionFilter();
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void LogViewer::on_cboFunction_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int> roles)
+{
+    CFuncTracer trace("LogViewer::on_cboFunction_checkbox_changed", m_trace);
+    try
+    {
+        std::string sFunctionName = cboFunction->itemText(topLeft.row()).toStdString();
+        bool bChecked = (cboFunction->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
+        if (bChecked == false)
+            m_currentLogFile->UpdateFunctionName(true, sFunctionName);
+        else
+            m_currentLogFile->UpdateFunctionName(false, sFunctionName);
+
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+
 void LogViewer::open()
 {
     CFuncTracer trace("LogViewer::open", m_trace);
