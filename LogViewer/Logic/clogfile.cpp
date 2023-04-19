@@ -388,13 +388,13 @@ void CLogFile::SetInverseDescriptionFilter(std::vector<std::string> TextFilters,
         trace.Error("Exception occurred: %s", ex.what());
     }
 }
-void CLogFile::SetLevelFilter(std::vector<TracerLevel> LevelFilters)
+void CLogFile::SetLevelFilter()
 {
     CFuncTracer trace("CLogFile::SetLevelFilter", m_trace);
     try
     {
         m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
-                                    return Contains<TracerLevel>(LevelFilters, entry.GetLevel());
+                                    return entry.IsLevelFiltered();
         }), m_filteredEntries.end());
     }
     catch(std::exception& ex)
@@ -526,6 +526,15 @@ void CLogFile::UpdateClassFunctions(bool bFiltered, const std::string& classname
         {
             m_Classes[classname] = (bFiltered == false);
         }
+
+        // Update the filtered entries (IsFunctionFiltered, IsClassFiltered)
+        std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &bFiltered, &classname](CLogEntry& entry){
+            if (entry.Class().find(classname)!= std::string::npos)
+            {
+                entry.FilterClass(bFiltered);
+                entry.FilterFunction(bFiltered);
+            }
+        });
     }
     catch(std::exception& ex)
     {
@@ -543,6 +552,40 @@ void CLogFile::UpdateFunctionName(bool bFiltered, const std::string& fullFunctio
 
         if (m_Functions.find(fullFunctionName) != m_Functions.end())
             m_Functions[fullFunctionName] = (bFiltered == false);
+
+        // Update the filtered entries (IsFunctionFiltered)
+        std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &bFiltered, &fullFunctionName](CLogEntry& entry){
+            if (  (fullFunctionName.find(entry.Class())!= std::string::npos)
+                &&(fullFunctionName.find(entry.FuncName()) != std::string::npos))
+            {
+                entry.FilterFunction(bFiltered);
+            }
+        });
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+void CLogFile::UpdateLevel(bool bFiltered, const std::string& sLevel)
+{
+    CFuncTracer trace("CLogFile::UpdateLevel", m_trace);
+    try
+    {
+        trace.Trace("Level : %s, bFiltered : %s", sLevel.c_str(), (bFiltered == true)?"TRUE" : "FALSE");
+        if (m_TraceLevels.size() == 0)
+            GetTracelevels();
+
+        if (m_TraceLevels.find(sLevel) != m_TraceLevels.end())
+            m_TraceLevels[sLevel] = (bFiltered == false);
+
+        // Update the filtered entries (IsLevelFiltered)
+        std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &bFiltered, &sLevel](CLogEntry& entry){
+            if (entry.Level().find(sLevel)!= std::string::npos)
+            {
+                entry.FilterLevel(bFiltered);
+            }
+        });
     }
     catch(std::exception& ex)
     {

@@ -39,6 +39,7 @@ public:
         , m_bRequiredText(false)
         , m_bFunctionFiltered(false)
         , m_bClassFiltered(false)
+        , m_bLevelFiltered(false)
     {
         CFuncTracer trace("CLogEntry::CLogEntry", m_trace, false);
         m_ThdId = std::atoi(m_threadId.c_str());
@@ -93,6 +94,7 @@ public:
     void SetSearchMark(bool required, const std::string& text){ m_bRequiredText = required; m_ReqText = text;}
     void FilterFunction(bool bFiltered){ m_bFunctionFiltered = bFiltered;}
     void FilterClass(bool bFiltered){ m_bClassFiltered = bFiltered;}
+    void FilterLevel(bool bFiltered){ m_bLevelFiltered = bFiltered;}
 
     TracerLevel GetLevel(void){ return m_tracerLevel;}
     int GetProcId(void) const { return m_ProcId;}
@@ -117,6 +119,7 @@ public:
     bool IsEntryRequired(void) const { return m_bRequiredText; }
     bool IsClassFiltered(void) const { return m_bClassFiltered; }
     bool IsFunctionFiltered(void) const{ return m_bFunctionFiltered;}
+    bool IsLevelFiltered(void) const{ return m_bLevelFiltered;}
 
     std::string GetRequiredText(void) const{ return m_ReqText; }
 
@@ -145,6 +148,7 @@ private:
     bool m_bRequiredText;
     bool m_bFunctionFiltered;
     bool m_bClassFiltered;
+    bool m_bLevelFiltered;
     int m_ThdId;
     int m_ProcId;
     unsigned long long m_uiTime;
@@ -174,7 +178,7 @@ public:
     void SetTimeFilter(std::string startTime, std::string endTime);
     void SetDescriptionFilter(std::vector<std::string> TextFilters, bool caseSensitive = true, bool wordOnly = false);
     void SetInverseDescriptionFilter(std::vector<std::string> TextFilter, bool caseSensitive = true, bool WordOnly = false);
-    void SetLevelFilter(std::vector<TracerLevel> LevelFilters);
+    void SetLevelFilter(void);
     void SetThreadIdFilter(std::vector<int> ThreadIdFilters);
     void SetProcIdFilter(std::vector<int> ProcIdFiters);
     void SetClassNameFilter(void);
@@ -194,6 +198,7 @@ public:
     void SetRequiredText(long long id, const std::string& text, bool bRequired );
     void UpdateClassFunctions(bool bFiltered, const std::string& classname);
     void UpdateFunctionName(bool bFiltered, const std::string& fullFunctionName);
+    void UpdateLevel(bool bFiltered, const std::string& sLevel);
     bool Save(const char *filename);
 
     bool IsTimeAvailable(void){ return (m_TimeIdx >= 0);}

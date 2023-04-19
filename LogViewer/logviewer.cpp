@@ -815,11 +815,9 @@ void LogViewer::onFunctionFilter_clicked(void)
     CFuncTracer trace("LogViewer::onFunctionFilter_clicked", m_trace);
     try
     {
-        std::vector<std::string> unselectedClasses = cbo_classModel->GetUnselectedItems();
-
         m_currentLogFile->ClearFilter();
-        m_currentLogFile->SetClassNameFilter(unselectedClasses);
-        m_currentLogFile->SetFunctionFilter(unselectedFunctions);
+        m_currentLogFile->SetClassNameFilter();
+        m_currentLogFile->SetFunctionFilter();
 
         update_current_tab();
 
@@ -834,15 +832,8 @@ void LogViewer::onLevelFilter_clicked(void)
     CFuncTracer trace("LogViewer::onLevelFilter_clicked", m_trace);
     try
     {
-        std::vector<std::string> unselectedTracelvls = cbo_levelModel->GetUnselectedItems();
-
-        m_filteredLevels.clear();
-        std::for_each(unselectedTracelvls.begin(), unselectedTracelvls.end(), [=](const std::string& lvl){
-            m_filteredLevels.push_back(CLogEntry::Convert(lvl));
-        });
-
         m_currentLogFile->ClearFilter();
-        m_currentLogFile->SetLevelFilter(m_filteredLevels);
+        m_currentLogFile->SetLevelFilter();
 
         // Update GUI
         update_current_tab();
@@ -1112,7 +1103,7 @@ void LogViewer::on_cboClass_checkbox_changed(const QModelIndex& topLeft, const Q
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
-void LogViewer::on_cboFunction_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int> roles)
+void LogViewer::on_cboFunction_checkbox_changed(const QModelIndex& topLeft, const QModelIndex&, QList<int> )
 {
     CFuncTracer trace("LogViewer::on_cboFunction_checkbox_changed", m_trace);
     try
@@ -1130,6 +1121,25 @@ void LogViewer::on_cboFunction_checkbox_changed(const QModelIndex&, const QModel
         trace.Error("Exception occurred : %s", ex.what());
     }
 }
+void LogViewer::on_cboLevel_checkbox_changed(const QModelIndex& topLeft, const QModelIndex&, QList<int> )
+{
+    CFuncTracer trace("LogViewer::on_cboLevel_checkbox_changed", m_trace);
+    try
+    {
+        std::string sLevel = cboLevel->itemText(topLeft.row()).toStdString();
+        bool bChecked = (cboLevel->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
+        if (bChecked == false)
+            m_currentLogFile->UpdateLevel(true, sLevel);
+        else
+            m_currentLogFile->UpdateLevel(false, sLevel);
+
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+}
+
 
 void LogViewer::open()
 {
