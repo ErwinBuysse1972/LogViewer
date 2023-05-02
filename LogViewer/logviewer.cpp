@@ -21,6 +21,7 @@
 #include "Logic/clogfile.h"
 #include "inc/Logic/cconversion.h"
 #include "searchform.h"
+#include "logentryview.h"
 
 
 LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
@@ -64,6 +65,7 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     , cbxWordOnly(nullptr)
     , cbxSearch(nullptr)
     , m_searchDialog(nullptr)
+    , m_logEntryView(nullptr)
     , keyCtrlM(nullptr)
     , keyF3(nullptr)
     , keyCtrlF(nullptr)
@@ -121,6 +123,10 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 
@@ -245,15 +251,15 @@ LogViewer::~LogViewer()
             delete lblFunction;
             lblFunction = nullptr;
         }
-        if (cboFunction != nullptr)
-        {
-            delete cboFunction;
-            cboFunction = nullptr;
-        }
         if (cboFunctionModel != nullptr)
         {
             delete cboFunctionModel;
             cboFunctionModel = nullptr;
+        }
+        if (cboFunction != nullptr)
+        {
+            delete cboFunction;
+            cboFunction = nullptr;
         }
         if (btnFunctionFilter != nullptr)
         {
@@ -325,7 +331,11 @@ LogViewer::~LogViewer()
             delete m_searchDialog;
             m_searchDialog = nullptr;
         }
-
+        if (m_logEntryView)
+        {
+            delete m_logEntryView;
+            m_logEntryView = nullptr;
+        }
         if (keyCtrlM != nullptr)
         {
             delete keyCtrlM;
@@ -347,6 +357,10 @@ LogViewer::~LogViewer()
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::init_styles(void)
@@ -370,6 +384,10 @@ void LogViewer::init_styles(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::init_createActions(void)
@@ -418,6 +436,10 @@ void LogViewer::init_createActions(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::init_createMenus(void)
 {
@@ -443,6 +465,10 @@ void LogViewer::init_createMenus(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::init_createFilterGroupBox(void)
@@ -497,6 +523,10 @@ void LogViewer::init_createFilterGroupBox(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::init_createFunctionFilteringGroupBox(void)
 {
@@ -511,7 +541,7 @@ void LogViewer::init_createFunctionFilteringGroupBox(void)
         cboClass = new QComboBox(gbxFunctionFiltering);
         cboClass->setObjectName("cboClass");
         cboClass->setGeometry(QRect(110, 40, 501, 25));
-        cbo_classModel = new QCheckableModel(m_trace);
+        cbo_classModel = new QCheckableModel(m_trace, "cbo_classModel");
         cboClass->setModel(cbo_classModel);
         connect(cbo_classModel, &QCheckableModel::dataChanged, this, &LogViewer::on_cboClass_checkbox_changed);
 
@@ -524,7 +554,7 @@ void LogViewer::init_createFunctionFilteringGroupBox(void)
         cboFunction = new QComboBox(gbxFunctionFiltering);
         cboFunction->setObjectName("cboFunction");
         cboFunction->setGeometry(QRect(110, 70, 501, 25));
-        cboFunctionModel = new QCheckableModel(m_trace);
+        cboFunctionModel = new QCheckableModel(m_trace, "cboFunctionModel");
         cboFunction->setModel(cboFunctionModel);
         connect(cboFunctionModel, &QCheckableModel::dataChanged, this, &LogViewer::on_cboFunction_checkbox_changed);
 
@@ -539,6 +569,10 @@ void LogViewer::init_createFunctionFilteringGroupBox(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::init_createLevelFilteringGroupBox(void)
@@ -561,8 +595,11 @@ void LogViewer::init_createLevelFilteringGroupBox(void)
         cboLevel = new QComboBox(gbxLevel);
         cboLevel->setObjectName("cboLevel");
         cboLevel->setGeometry(QRect(70, 60, 201, 25));
-        cbo_levelModel = new QCheckableModel(m_trace);
+        cbo_levelModel = new QCheckableModel(m_trace, "cbo_levelModel");
         cboLevel->setModel(cbo_levelModel);
+        connect(cbo_levelModel, &QCheckableModel::dataChanged,
+                this, &LogViewer::on_cboLevel_checkbox_changed);
+
         btnLevelFiltering = new QPushButton(gbxLevel);
         btnLevelFiltering->setObjectName("btnLevelFiltering");
         btnLevelFiltering->setGeometry(QRect(130, 110, 141, 25));
@@ -574,6 +611,10 @@ void LogViewer::init_createLevelFilteringGroupBox(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::init_createShortCut(void)
@@ -606,6 +647,10 @@ void LogViewer::init_createShortCut(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::init_retranslateUi(void)
@@ -641,25 +686,42 @@ void LogViewer::init_retranslateUi(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 
 void LogViewer::update_classFilter(void)
 {
     CFuncTracer trace("LogViewer::update_classFilter", m_trace);
+    CScopeTimer timer("LogViewer::update_classFilter", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
     try
     {
+        timer.SetTime("Start");
         if (m_currentLogFile.get() != nullptr)
         {
+            timer.SetTime("Get the current log file");
             std::map<std::string, bool> classes = m_currentLogFile->GetClasses();
+            timer.SetTime("Classes get");
             // clear combo box
             cboClass->clear();
+            timer.SetTime("clear the classes");
             // Add to combo box
             cbo_classModel->append(classes);
+            timer.SetTime("classes append to the model");
         }
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occured : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::update_functionFilter(void)
@@ -684,6 +746,10 @@ void LogViewer::update_functionFilter(void)
     {
         trace.Error("Exception occured : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::update_traceLevels(void)
 {
@@ -703,6 +769,10 @@ void LogViewer::update_traceLevels(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occured : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::update_current_tab(void)
@@ -749,6 +819,10 @@ void LogViewer::update_current_tab(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 
 void LogViewer::on_cbxWordOnly_stateChanged(int /*arg1*/)
@@ -756,12 +830,12 @@ void LogViewer::on_cbxWordOnly_stateChanged(int /*arg1*/)
     CFuncTracer trace("LogViewer::on_cbxWordOnly_stateChanged", m_trace, false);
     try
     {
-        trace.Trace("state : %s", (cbxWordOnly->checkState() == Qt::Checked)? "CHECKED" : "NOT CHECKED");
+        trace.Trace("state : %s",
+                    (cbxWordOnly->checkState() == Qt::Checked) ? "CHECKED" : "NOT CHECKED");
         if (cbxWordOnly->checkState() == Qt::Checked)
         {
             m_bWordOnly = true;
-        }
-        else
+        } else
         {
             m_bWordOnly = false;
         }
@@ -769,6 +843,10 @@ void LogViewer::on_cbxWordOnly_stateChanged(int /*arg1*/)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::on_cbxCaseSensitive_stateChanged(int /*arg1*/)
@@ -786,6 +864,10 @@ void LogViewer::on_cbxCaseSensitive_stateChanged(int /*arg1*/)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::on_cbxInversesearch_stateChanged(int /*arg1*/)
@@ -809,6 +891,10 @@ void LogViewer::on_cbxInversesearch_stateChanged(int /*arg1*/)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::onFunctionFilter_clicked(void)
 {
@@ -826,6 +912,10 @@ void LogViewer::onFunctionFilter_clicked(void)
     {
         trace.Error("Exception occured : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::onLevelFilter_clicked(void)
 {
@@ -842,6 +932,10 @@ void LogViewer::onLevelFilter_clicked(void)
     {
         trace.Error("Exception occured : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::onSearchFilter_clicked(void)
 {
@@ -852,7 +946,6 @@ void LogViewer::onSearchFilter_clicked(void)
         std::string combotext = cbxSearch->currentText().toStdString();
         textfilters = CConversion::split(combotext, ',', textfilters, true);
 
-        m_currentLogFile->ClearFilter();
         if (!m_bInverseSearch)
             m_currentLogFile->SetDescriptionFilter(textfilters, m_bCaseSensitive, m_bWordOnly);
         else
@@ -868,6 +961,10 @@ void LogViewer::onSearchFilter_clicked(void)
     {
         trace.Error("Exception occured : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::onProcThreadIdFilter_clicked(void)
 {
@@ -879,6 +976,10 @@ void LogViewer::onProcThreadIdFilter_clicked(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occured : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::onClearFilter_clicked(void)
@@ -898,6 +999,10 @@ void LogViewer::onClearFilter_clicked(void)
     {
         trace.Error("Exception occurred: %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::onClearLevelFilter_clicked(void)
 {
@@ -914,6 +1019,10 @@ void LogViewer::onClearLevelFilter_clicked(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occured : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::onClearFunctionFilter_clicked(void)
@@ -932,32 +1041,50 @@ void LogViewer::onClearFunctionFilter_clicked(void)
     {
         trace.Error("Exception occured : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 
 void LogViewer::onTabChanged(int index)
 {
     CFuncTracer trace("LogViewer::onTabChanged", m_trace);
+    CScopeTimer timer("LogViewer::onTabChanged", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
     try
     {
         trace.Info("index : %ld", index);
         m_currentTabIdx = index;
+        timer.SetTime("00");
         QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(index));
         if (current_tab != nullptr)
         {
             auto it = m_mpLogFiles.find(current_tab->GetFilename());
             if (it != m_mpLogFiles.end())
             {
+                timer.SetTime("tab is found");
                 m_currentLogFile = it->second;
                 update_classFilter();
+                timer.SetTime("classFilter is updated!");
                 update_functionFilter();
+                timer.SetTime("functionFilter is updated!");
                 update_traceLevels();
+                timer.SetTime("traceLevels are updated!");
                 update_current_tab();
+                timer.SetTime("Current tab is updated");
             }
         }
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::on_toggle_mark(void)
@@ -979,6 +1106,10 @@ void LogViewer::on_toggle_mark(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::on_goto_next_mark(void)
 {
@@ -994,6 +1125,10 @@ void LogViewer::on_goto_next_mark(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::on_search_text(void)
@@ -1041,6 +1176,10 @@ void LogViewer::on_search_text(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::on_exit_mode(void)
 {
@@ -1058,6 +1197,10 @@ void LogViewer::on_exit_mode(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::on_goto_next_required_text(void)
 {
@@ -1074,33 +1217,54 @@ void LogViewer::on_goto_next_required_text(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
-void LogViewer::on_cboClass_checkbox_changed(const QModelIndex& topLeft, const QModelIndex& bottomRight, QList<int> roles)
+void LogViewer::on_cboClass_checkbox_changed(const QModelIndex& topLeft, const QModelIndex& , QList<int> )
 {
     CFuncTracer trace("LogViewer::on_cboClass_checkbox_changed", m_trace);
+    CScopeTimer timer("LogViewer::on_cboClass_checkbox_changed", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
     try
     {
-
-        std::string sName = cboClass->itemText(topLeft.row()).toStdString();
-        bool bChecked = (cboClass->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
-        if (bChecked == false)
+        timer.SetTime("Start");
+        if (cboClass != nullptr)
         {
-            // Set all the functions that contains this classname to false
-            m_currentLogFile->UpdateClassFunctions(true, sName);
+            std::string sName = cboClass->itemText(topLeft.row()).toStdString();
+            bool bChecked = (cboClass->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
+            timer.SetTime("GetChecked state");
+            if (bChecked == false)
+            {
+                // Set all the functions that contains this classname to false
+                m_currentLogFile->UpdateClassFunctions(true, sName);
+            }
+            else
+            {
+                // Set all the functions that contains this classname to true
+                m_currentLogFile->UpdateClassFunctions(false, sName);
+            }
+            timer.SetTime("Update class Function");
+
+            // Update of the function filter is necessary to update the different states of the checkboxes
+            //    inside the combo box of the function.
+            update_functionFilter();
+            timer.SetTime("Update function filter");
         }
         else
-        {
-            // Set all the functions that contains this classname to true
-            m_currentLogFile->UpdateClassFunctions(false, sName);
-        }
-
-        // Update of the function filter is necessary to update the different states of the checkboxes
-        //    inside the combo box of the function.
-        update_functionFilter();
+            trace.Warning("cboClass is nullptr!");
+        timer.SetTime("Finish");
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::on_cboFunction_checkbox_changed(const QModelIndex& topLeft, const QModelIndex&, QList<int> )
@@ -1108,17 +1272,27 @@ void LogViewer::on_cboFunction_checkbox_changed(const QModelIndex& topLeft, cons
     CFuncTracer trace("LogViewer::on_cboFunction_checkbox_changed", m_trace);
     try
     {
-        std::string sFunctionName = cboFunction->itemText(topLeft.row()).toStdString();
-        bool bChecked = (cboFunction->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
-        if (bChecked == false)
-            m_currentLogFile->UpdateFunctionName(true, sFunctionName);
+        if (cboFunction != nullptr)
+        {
+            std::string sFunctionName = cboFunction->itemText(topLeft.row()).toStdString();
+            bool bChecked = (cboFunction->itemData(topLeft.row(), Qt::CheckStateRole)
+                             == Qt::Checked);
+            if (bChecked == false)
+                m_currentLogFile->UpdateFunctionName(true, sFunctionName);
+            else
+                m_currentLogFile->UpdateFunctionName(false, sFunctionName);
+        }
         else
-            m_currentLogFile->UpdateFunctionName(false, sFunctionName);
+            trace.Warning("cboFunction is nullptr!");
 
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::on_cboLevel_checkbox_changed(const QModelIndex& topLeft, const QModelIndex&, QList<int> )
@@ -1126,20 +1300,52 @@ void LogViewer::on_cboLevel_checkbox_changed(const QModelIndex& topLeft, const Q
     CFuncTracer trace("LogViewer::on_cboLevel_checkbox_changed", m_trace);
     try
     {
-        std::string sLevel = cboLevel->itemText(topLeft.row()).toStdString();
-        bool bChecked = (cboLevel->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
-        if (bChecked == false)
-            m_currentLogFile->UpdateLevel(true, sLevel);
+        if (cboLevel != nullptr)
+        {
+            std::string sLevel = cboLevel->itemText(topLeft.row()).toStdString();
+            bool bChecked = (cboLevel->itemData(topLeft.row(), Qt::CheckStateRole) == Qt::Checked);
+            if (bChecked == false)
+                m_currentLogFile->UpdateLevel(true, sLevel);
+            else
+                m_currentLogFile->UpdateLevel(false, sLevel);
+        }
         else
-            m_currentLogFile->UpdateLevel(false, sLevel);
+            trace.Warning("cboLevel is nullptr");
 
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
-
+void LogViewer::on_double_click(const CLogEntry& entry)
+{
+    CFuncTracer trace("LogViewer::on_double_click", m_trace);
+    try
+    {
+        if (m_logEntryView)
+        {
+            delete m_logEntryView;
+            m_logEntryView = nullptr;
+        }
+        m_logEntryView = new LogEntryView(entry,
+                                          m_trace,
+                                          this);
+        m_logEntryView->show();
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+}
 
 void LogViewer::open()
 {
@@ -1162,25 +1368,36 @@ void LogViewer::open()
             trace.Trace("Lines : %ld", lines.size());
             timer.SetTime("Get lines of the file");
             QWidget *viewer = new QLogFileWidget(m_trace, lines, this);
-            timer.SetTime("viewer created");
+            timer.SetTime("create widget with lines");
             if (m_mpLogFiles.find(file->Name()) == m_mpLogFiles.end())
             {
                 m_mpLogFiles.insert(std::make_pair(file->Name(), file));
+                timer.SetTime("Add file to mpLogFile");
                 if (m_mpLogFiles.size() == 1)
                 {
                     m_currentLogFile = file;
                     m_currentTabIdx = 0;
                 }
+                timer.SetTime("Update current tab");
             }
-            ((QLogFileWidget*)viewer)->SetFileName(filename.toStdString());
+            QLogFileWidget* logFileWidget = dynamic_cast<QLogFileWidget*>(viewer);
+            logFileWidget->SetFileName(filename.toStdString());
+            timer.SetTime("Set filename into widget");
             tabWidget->addTab(viewer, filename);
-            ((QLogFileWidget*)viewer)->SetTabIndex(tabWidget->indexOf(viewer));
-            timer.SetTime("tabwidget added");
+            timer.SetTime("Add tab to widget");
+            logFileWidget->SetTabIndex(tabWidget->indexOf(viewer));
+            timer.SetTime("Select correct tab");
+            connect(logFileWidget, SIGNAL(RowDoubleClicked(const CLogEntry& entry)), this, SLOT(LogViewer::on_double_click));
+            timer.SetTime("Add double row click connection");
         }
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::save()
@@ -1231,6 +1448,10 @@ void LogViewer::save()
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::close()
 {
@@ -1263,6 +1484,10 @@ void LogViewer::close()
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::saveXmlBegin(void)
 {
@@ -1274,6 +1499,10 @@ void LogViewer::saveXmlBegin(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred :%s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::saveCsvEntry(void)
@@ -1287,6 +1516,10 @@ void LogViewer::saveCsvEntry(void)
     {
         trace.Error("Exception occurred :%s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::saveJsonEntry(void)
 {
@@ -1298,6 +1531,10 @@ void LogViewer::saveJsonEntry(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred :%s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 void LogViewer::saveXmlEntry(void)
@@ -1311,6 +1548,10 @@ void LogViewer::saveXmlEntry(void)
     {
         trace.Error("Exception occurred :%s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void LogViewer::saveTextEntry(void)
 {
@@ -1322,5 +1563,9 @@ void LogViewer::saveTextEntry(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred :%s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }

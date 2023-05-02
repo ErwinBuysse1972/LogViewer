@@ -12,6 +12,9 @@ QtApplication {
     cpp.includePaths: "inc/Logic"
     files: [
         "QCheckableComboBox.h",
+        "logentryview.cpp",
+        "logentryview.h",
+        "logentryview.ui",
         "main.cpp",
         "logviewer.cpp",
         "logviewer.h",

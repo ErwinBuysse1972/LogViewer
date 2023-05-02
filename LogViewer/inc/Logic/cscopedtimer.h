@@ -18,7 +18,8 @@ private:
     static std::map<std::string, float> m_totaltime;
     static std::map<std::string, long long> m_calls;
     static std::map<std::string, long long> m_funcAboveThreshold;
-    std::map<std::string, Clocktype::time_point> m_interestingTimes;
+    std::map<std::string, std::vector<Clocktype::time_point>> m_interestingTimes;
+
 public:
     CScopeTimer(const std::string& funcName, long long thrsFuncTimens, std::function<void(const std::string& msg)> cb);
     CScopeTimer(CScopeTimer&) = delete;
@@ -28,4 +29,6 @@ public:
     ~CScopeTimer();
 
     void SetTime(const std::string& tsName);
+    // This get the relative timings between two Set Time points
+    std::string GetRelativeTimes(const std::string& First, const std::string& Later, bool bAverageOnly = true);
 };

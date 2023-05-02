@@ -249,6 +249,8 @@ private:
     void parse(void);
     void automaticDetectFormat(std::vector<std::string>& fields);
     bool isTraceLevelValid(const char *level);
+    int getFileSize(FILE* fp);
+    int getNrOfLines(const std::string& file);
     void saveXmlBegin(void);
     void saveCsvEntry(void);
     void saveJsonEntry(void);

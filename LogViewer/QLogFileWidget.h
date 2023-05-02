@@ -15,7 +15,12 @@
 #include <QTextEdit>
 #include <QPainter>
 
+#include <functional>
 #include <list>
+
+#include "cfunctracer.h"
+#include "ctracer.h"
+#include "cscopedtimer.h"
 
 enum class eColumns
 {
@@ -184,21 +189,41 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
         return {};
     }
     void append(std::vector<CLogEntry> entries)
     {
         CFuncTracer trace("QLogFileModel::append", m_trace);
+        CScopeTimer timer("QLogFileModel::append", 0, [=, &trace](const std::string& msg){
+            trace.Info("Timings:");
+            trace.Info("    %s", msg.c_str());
+        });
         try
         {
+            timer.SetTime("01");
             beginInsertRows({}, m_entries.count(), m_entries.count() + entries.size());
             for(const CLogEntry& entry : entries)
+            {
+                timer.SetTime("02");
                 m_entries.append(entry);
+                timer.SetTime("03");
+            }
             endInsertRows();
+            timer.SetTime("04");
+            trace.Info("Relative time 02-03 : %s" , timer.GetRelativeTimes("02","03").c_str());
+
         }
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
     }
     void clear()
@@ -211,6 +236,10 @@ public:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
     }
     long long rowToggleMark(const QModelIndex& index, bool& bMark)
@@ -246,12 +275,15 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
         return id;
     }
     std::optional<CLogEntry> getLogEntry(int index) const
     {
         CFuncTracer trace("QLogFileModel::getLogEntry", m_trace);
-        CLogEntry value;
         try
         {
             trace.Trace("index : %d", index);
@@ -265,6 +297,10 @@ public:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
         return std::nullopt;
     }
@@ -295,6 +331,10 @@ public:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
         return -1;
     }
@@ -342,6 +382,10 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
         return ids;
     }
     int rowGetNextSearchFoundItem(const QModelIndex& currentIdx)
@@ -377,6 +421,10 @@ public:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
         return -1;
     }
@@ -454,6 +502,10 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
         return QItemDelegate::createEditor(parent, option, index);
     }
     void setEditorData(QWidget *editor, const QModelIndex &index) const
@@ -508,6 +560,10 @@ public:
         {
             trace.Error("Exception occurred : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
     }
 
     void updateEditorGeometry(QWidget *editor,
@@ -539,6 +595,7 @@ private:
 class QLogFileWidget : public QWidget
 {
     Q_OBJECT
+
 public:
     explicit QLogFileWidget(std::shared_ptr<CTracer> tracer, std::vector<CLogEntry> entries, __attribute__((unused))QWidget *parent = nullptr)
         : m_tabindex(-1)
@@ -558,6 +615,10 @@ public:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
     }
 
@@ -591,6 +652,11 @@ public:
         {
             trace.Error("Exception occurred: %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
+
     }
 
     QLogFileModel *GetModel(void)
@@ -652,6 +718,10 @@ public:
         {
             trace.Error("Exception occured : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
     }
     void GotoNextRequiredText(void)
     {
@@ -675,6 +745,10 @@ public:
         {
             trace.Error("Exception occured : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
     }
     void GotoTopOfTable(void)
     {
@@ -688,7 +762,15 @@ public:
         {
             trace.Error("Exception occured : %s", ex.what());
         }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
+        }
     }
+
+signals:
+    void RowDoubleClicked(const CLogEntry& index);
+
 private slots:
     void row_double_click(const QModelIndex &  index)
     {
@@ -696,11 +778,19 @@ private slots:
         try
         {
             trace.Trace("index : %ld", index);
-
+            std::optional<CLogEntry> entry = GetModel()->getLogEntry(index.row());
+            if (entry)
+            {
+                emit RowDoubleClicked(*entry);
+            }
         }
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
     }
     void row_click(__attribute__((unused)) const QModelIndex &  index)
@@ -712,6 +802,10 @@ private slots:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
     }
 
@@ -740,6 +834,8 @@ private:
             m_View->setItemDelegate(m_delegate);
             m_View->resizeColumnsToContents();
             m_View->setStyleSheet("QTableView:disabled{color:grey;}QTableView:enabled{color:black;font-weight:normal;}");
+            m_View->setAlternatingRowColors(true);
+            m_View->setSelectionBehavior(QAbstractItemView::SelectionBehavior::SelectRows);
 
 
             m_Layout->setContentsMargins(0,0,0,0);
@@ -748,6 +844,10 @@ private:
         catch(std::exception& ex)
         {
             trace.Error("Exception occurred : %s", ex.what());
+        }
+        catch(...)
+        {
+            trace.Error("Exception occurred");
         }
     }
 };

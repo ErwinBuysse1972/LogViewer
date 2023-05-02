@@ -59,12 +59,12 @@ string CTracer::GetCurrentPIDInfo()
 {
     std::stringstream ss;
 
-    pid_t tid = syscall(__NR_gettid);
+   // pid_t tid = syscall(__NR_gettid);
     pid_t ltid = gettid();
 
-    pid_t pid = syscall(__NR_getpid);
+    //pid_t pid = syscall(__NR_getpid);
     pid_t lpid = getpid();
-    ss <<"[" <<  std::to_string(pid) << ":"<< std::to_string(tid) << "] ";
+    ss <<"[" <<  std::to_string(lpid) << ":"<< std::to_string(ltid) << "] ";
     return ss.str();
 }
 void CTracer::Trace(const char *data)

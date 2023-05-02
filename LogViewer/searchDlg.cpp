@@ -72,6 +72,10 @@ void SearchDlg::init_create_dialog(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 
 void SearchDlg::retranslateUi(void)
@@ -86,6 +90,10 @@ void SearchDlg::retranslateUi(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 
@@ -105,5 +113,9 @@ void SearchDlg::onSearchButtonPressed(void)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }

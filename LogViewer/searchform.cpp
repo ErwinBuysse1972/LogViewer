@@ -74,5 +74,9 @@ void SearchForm::on_btnSearch_clicked()
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 

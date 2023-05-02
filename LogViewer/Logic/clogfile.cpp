@@ -5,6 +5,7 @@
 #include <sstream>
 #include <fstream>
 #include <algorithm>
+#include <stdio.h>
 #include "cfunctracer.h"
 #include "cscopedtimer.h"
 #include "cconversion.h"
@@ -34,19 +35,37 @@ CLogFile::CLogFile(const char* file, std::shared_ptr<CTracer> tracer)
     , m_maxDescLength(0)
     , m_maxClassLength(0)
     , m_maxFuncLength(0)
-
 {
     CFuncTracer trace("CLogFile::CLogFile", m_trace);
+    CScopeTimer timer("CLogFile::CLogFile", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
     try
     {
-        trace.Info("File : %s", file);
+        timer.SetTime("00");
+        int iLines = getNrOfLines(file);
+        timer.SetTime("01");
+        trace.Info("File : %s (lines : %ld)", file, iLines);
+        timer.SetTime("02");
+        m_logEntries.reserve(iLines);
+        timer.SetTime("03");
+        m_filteredEntries.reserve(iLines);
+        timer.SetTime("04");
         parse();
+        timer.SetTime("05");
         trace.Info("entries: %ld", m_logEntries.size());
+        timer.SetTime("06");
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 CLogFile::CLogFile(const CLogFile& file)
     : m_trace(file.m_trace)
@@ -85,6 +104,11 @@ CLogFile::CLogFile(const CLogFile& file)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 
 CLogFile::CLogFile(const CLogFile &&file)
@@ -122,6 +146,11 @@ CLogFile::CLogFile(const CLogFile &&file)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 CLogFile& CLogFile::operator=(CLogFile& file)
 {
@@ -160,6 +189,10 @@ CLogFile& CLogFile::operator=(CLogFile& file)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
     return *this;
 }
@@ -201,6 +234,10 @@ CLogFile& CLogFile::operator=(CLogFile&& file)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
     return *this;
 }
 
@@ -215,6 +252,10 @@ CLogFile::~CLogFile()
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 std::vector<CLogEntry> CLogFile::GetEntries(void)
 {
@@ -227,6 +268,11 @@ std::vector<CLogEntry> CLogFile::GetEntries(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
     return std::vector<CLogEntry>();
 }
 std::map<std::string, bool> CLogFile::GetFunctions(void)
@@ -255,29 +301,57 @@ std::map<std::string, bool> CLogFile::GetFunctions(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
     return m_Functions;
 }
 std::map<std::string, bool> CLogFile::GetClasses(void)
 {
     CFuncTracer trace("CLogFile::GetClasses", m_trace);
+    CScopeTimer timer("CLogFile::GetClasses", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
     try
     {
+        timer.SetTime("start");
         if (m_Classes.size() == 0)
         {
-            std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
-                if (m_Classes.find(entry.Class()) == m_Classes.end())
-                    m_Classes.insert(std::make_pair(entry.Class(), (entry.IsClassFiltered() == false)));
+            timer.SetTime("add m_filteredEntries classes");
+            std::for_each(m_filteredEntries.begin(),
+                          m_filteredEntries.end(),
+                          [=](CLogEntry& entry)
+                          {
+                            if (m_Classes.find(entry.Class()) == m_Classes.end())
+                                m_Classes.insert(std::make_pair(entry.Class(), (entry.IsClassFiltered() == false)));
             });
-            std::for_each(m_logEntries.begin(), m_logEntries.end(), [=](CLogEntry& entry){
-                if (m_Classes.find(entry.Class()) == m_Classes.end())
-                    m_Classes.insert(std::make_pair(entry.Class(), false));
-            });
+
+            if (m_filteredEntries.size() < m_logEntries.size())
+            {
+                timer.SetTime("add m_logEntries classes");
+                std::for_each(m_logEntries.begin(),
+                              m_logEntries.end(),
+                              [=](CLogEntry &entry)
+                              {
+                                if (m_Classes.find(entry.Class()) == m_Classes.end())
+                                        m_Classes.insert(std::make_pair(entry.Class(), false));
+                });
+            }
+            timer.SetTime("End");
         }
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
     return m_Classes;
 }
 std::map<std::string, bool> CLogFile::GetTracelevels(void)
@@ -305,6 +379,11 @@ std::map<std::string, bool> CLogFile::GetTracelevels(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
     return m_TraceLevels;
 }
 
@@ -330,6 +409,11 @@ void CLogFile::SetTimeFilter(std::string startTime, std::string endTime)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::SetDescriptionFilter(std::vector<std::string> TextFilters, bool caseSensitive, bool wordOnly)
 {
@@ -358,6 +442,11 @@ void CLogFile::SetDescriptionFilter(std::vector<std::string> TextFilters, bool c
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::SetInverseDescriptionFilter(std::vector<std::string> TextFilters, bool caseSensitive, bool wordOnly)
 {
@@ -387,20 +476,38 @@ void CLogFile::SetInverseDescriptionFilter(std::vector<std::string> TextFilters,
     {
         trace.Error("Exception occurred: %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::SetLevelFilter()
 {
     CFuncTracer trace("CLogFile::SetLevelFilter", m_trace);
     try
     {
-        m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
-                                    return entry.IsLevelFiltered();
-        }), m_filteredEntries.end());
+        int prevSize = m_filteredEntries.size();
+        m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(),
+                                               m_filteredEntries.end(),
+                                               [=](CLogEntry &entry) {
+                                                   return entry.IsLevelFiltered();
+                                               }),
+                                m_filteredEntries.end());
+        trace.Trace("Number of entries removed: %ld, total entries: %ld"
+                    , (prevSize - m_filteredEntries.size())
+                    , m_filteredEntries.size());
+
     }
-    catch(std::exception& ex)
+    catch (std::exception &ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::SetThreadIdFilter(std::vector<int> ThreadIdFilters)
 {
@@ -414,6 +521,10 @@ void CLogFile::SetThreadIdFilter(std::vector<int> ThreadIdFilters)
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 
 }
@@ -430,6 +541,10 @@ void CLogFile::SetProcIdFilter(std::vector<int> ProcIdFiters)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 
 }
 void CLogFile::SetClassNameFilter(void)
@@ -445,6 +560,11 @@ void CLogFile::SetClassNameFilter(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::SetFunctionFilter(void)
 {
@@ -459,6 +579,11 @@ void CLogFile::SetFunctionFilter(void)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 
 }
 void CLogFile::ClearFilter(void)
@@ -470,9 +595,13 @@ void CLogFile::ClearFilter(void)
         std::copy(m_logEntries.begin(), m_logEntries.end(),
                   std::back_inserter(m_filteredEntries));
     }
-    catch(std::exception& ex)
+    catch (std::exception &ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 
 }
@@ -481,29 +610,52 @@ void CLogFile::FunctionFilterClear(void)
     CFuncTracer trace("CLogFile::FunctionFilterClear", m_trace);
     try
     {
-        m_Functions.clear();
+        if (m_Classes.size() == 0)
+            GetClasses();
+        if (m_Functions.size() == 0)
+            GetFunctions();
 
+        for(std::pair<std::string, bool> classes : m_Classes)
+            UpdateClassFunctions(false, classes.first);
+
+        for (std::pair<std::string, bool> functions : m_Functions)
+            UpdateFunctionName(false, functions.first);
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::LevelFilterClear(void)
 {
     CFuncTracer trace("CLogFile::LevelFilterClear", m_trace);
     try
     {
-        m_Classes.clear();
+        if (m_TraceLevels.size() == 0)
+            GetTracelevels();
+        for (std::pair<std::string, bool> tracelevel : m_TraceLevels)
+            UpdateLevel(false, tracelevel.first);
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::UpdateClassFunctions(bool bFiltered, const std::string& classname)
 {
     CFuncTracer trace("CLogFile::UpdateClassFunctions", m_trace);
+    int iCountFunctions = 0;
+    int iCountClass = 0;
     try
     {
         trace.Trace("classname : %s, bFiltered : %s", classname.c_str(), (bFiltered == true)?"TRUE":"FALSE");
@@ -511,16 +663,20 @@ void CLogFile::UpdateClassFunctions(bool bFiltered, const std::string& classname
             GetFunctions();
 
         //Update the functions
-        std::for_each(m_Functions.begin(), m_Functions.end(), [=, &classname, &bFiltered, &trace](std::pair<std::string, bool> p)
-        {
-            std::string sFind = classname + "::";
-            if (p.first.find(sFind)!= std::string::npos)
-            {
-                bool bvalue = (bFiltered == false);
-                trace.Trace("function(%s) found (%s) -> bFiltered: %s", p.first.c_str(), sFind.c_str(), (bvalue == true)?"NOT FILTERED" : "FILTERED");
-                m_Functions[p.first] = bvalue;
-            }
-        });
+        std::for_each(m_Functions.begin(),
+                      m_Functions.end(),
+                      [=, &classname, &bFiltered, &trace, &iCountFunctions](std::pair<std::string, bool> p) {
+                          std::string sFind = classname + "::";
+                          if (p.first.find(sFind) != std::string::npos) {
+                              bool bvalue = (bFiltered == false);
+                              trace.Trace("function(%s) found (%s) -> bFiltered: %s",
+                                          p.first.c_str(),
+                                          sFind.c_str(),
+                                          (bvalue == true) ? "NOT FILTERED" : "FILTERED");
+                              m_Functions[p.first] = bvalue;
+                              iCountFunctions ++;
+                          }
+                      });
         // Update the class
         if (m_Classes.find(classname) != m_Classes.end())
         {
@@ -528,22 +684,32 @@ void CLogFile::UpdateClassFunctions(bool bFiltered, const std::string& classname
         }
 
         // Update the filtered entries (IsFunctionFiltered, IsClassFiltered)
-        std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &bFiltered, &classname](CLogEntry& entry){
-            if (entry.Class().find(classname)!= std::string::npos)
-            {
-                entry.FilterClass(bFiltered);
-                entry.FilterFunction(bFiltered);
-            }
-        });
+        std::for_each(m_logEntries.begin(),
+                      m_logEntries.end(),
+                      [=, &bFiltered, &classname, &iCountClass](CLogEntry &entry) {
+                          if (entry.Class().find(classname) != std::string::npos) {
+                              entry.FilterClass(bFiltered);
+                              entry.FilterFunction(bFiltered);
+                              iCountClass++;
+                          }
+                      });
+
+        trace.Trace("iCountFunctions : %ld, iCountClass : %ld", iCountFunctions, iCountClass);
     }
-    catch(std::exception& ex)
+    catch (std::exception &ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::UpdateFunctionName(bool bFiltered, const std::string& fullFunctionName)
 {
     CFuncTracer trace("CLogFile::UpdateClassNames", m_trace);
+    int iCount = 0;
     try
     {
         trace.Trace("FunctionName : %s, bFiltered : %s", fullFunctionName.c_str(), (bFiltered == true)?"TRUE" : "FALSE");
@@ -554,22 +720,31 @@ void CLogFile::UpdateFunctionName(bool bFiltered, const std::string& fullFunctio
             m_Functions[fullFunctionName] = (bFiltered == false);
 
         // Update the filtered entries (IsFunctionFiltered)
-        std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &bFiltered, &fullFunctionName](CLogEntry& entry){
-            if (  (fullFunctionName.find(entry.Class())!= std::string::npos)
-                &&(fullFunctionName.find(entry.FuncName()) != std::string::npos))
-            {
-                entry.FilterFunction(bFiltered);
-            }
-        });
+        std::for_each(m_logEntries.begin(),
+                      m_logEntries.end(),
+                      [=, &bFiltered, &fullFunctionName, &iCount](CLogEntry &entry) {
+                          if ((fullFunctionName.find(entry.Class()) != std::string::npos)
+                              && (fullFunctionName.find(entry.FuncName()) != std::string::npos)) {
+                              entry.FilterFunction(bFiltered);
+                              iCount++;
+                          }
+                      });
+        trace.Trace("iCount : %ld", iCount);
     }
-    catch(std::exception& ex)
+    catch (std::exception &ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 void CLogFile::UpdateLevel(bool bFiltered, const std::string& sLevel)
 {
     CFuncTracer trace("CLogFile::UpdateLevel", m_trace);
+    int iCount = 0;
     try
     {
         trace.Trace("Level : %s, bFiltered : %s", sLevel.c_str(), (bFiltered == true)?"TRUE" : "FALSE");
@@ -580,17 +755,25 @@ void CLogFile::UpdateLevel(bool bFiltered, const std::string& sLevel)
             m_TraceLevels[sLevel] = (bFiltered == false);
 
         // Update the filtered entries (IsLevelFiltered)
-        std::for_each(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &bFiltered, &sLevel](CLogEntry& entry){
-            if (entry.Level().find(sLevel)!= std::string::npos)
-            {
-                entry.FilterLevel(bFiltered);
-            }
-        });
+        std::for_each(m_logEntries.begin(),
+                      m_logEntries.end(),
+                      [=, &bFiltered, &sLevel, &iCount](CLogEntry& entry) {
+                          if (entry.Level().find(sLevel) != std::string::npos) {
+                              entry.FilterLevel(bFiltered);
+                              iCount++;
+                          }
+                      });
+        trace.Trace("iCount : %ld", iCount);
     }
-    catch(std::exception& ex)
+    catch (std::exception &ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
 }
 bool CLogFile::Save(const char *filename)
 {
@@ -620,6 +803,10 @@ bool CLogFile::Save(const char *filename)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
     return false;
 }
 std::map<std::string, int> CLogFile::GetClassOccurences()
@@ -640,6 +827,10 @@ std::map<std::string, int> CLogFile::GetClassOccurences()
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
     return m_ClassOccurences;
 }
@@ -662,6 +853,10 @@ std::map<std::string, int> CLogFile::GetFunctionOccurences()
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
     return m_FunctionOccurences;
 }
@@ -688,6 +883,10 @@ std::map<std::string, int> CLogFile::GetFunctionEntries()
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
     return m_FunctionEntries;
 }
 std::map<std::string, int> CLogFile::GetFunctionExits()
@@ -713,6 +912,10 @@ std::map<std::string, int> CLogFile::GetFunctionExits()
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
     return m_FunctionExits;
 }
 void CLogFile::SetMark(long long id, bool bMark)
@@ -736,6 +939,10 @@ void CLogFile::SetMark(long long id, bool bMark)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 void CLogFile::SetRequiredText(long long id, const std::string& text, bool bRequired )
 {
@@ -756,6 +963,10 @@ void CLogFile::SetRequiredText(long long id, const std::string& text, bool bRequ
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
     }
 }
 
@@ -831,6 +1042,10 @@ void CLogFile::automaticDetectFormat(std::vector<std::string>& fields)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
 }
 bool CLogFile::isTraceLevelValid(const char *level)
 {
@@ -848,27 +1063,36 @@ void CLogFile::parse(void)
     std::ifstream file(m_name);
     try
     {
-        timer.SetTime("Start");
+        timer.SetTime("00");
         std::vector<std::string> fields;
         m_logEntries.clear();
-        timer.SetTime("Clear entries");
+        timer.SetTime("01");
+
         while(std::getline(file, m_sLine))
         {
+            timer.SetTime("01b");
             if (m_sLine.length() == 0)
                 continue;
+            timer.SetTime("02");
 
             if (!m_bDetectedFormat)
             {
+                timer.SetTime("02b");
                 automaticDetectFormat(fields);
+                timer.SetTime("02c");
             }
             else
             {
+                timer.SetTime("02d");
                 // Split string and add the correct strings
                 fields.clear();
                 fields = CConversion::split(m_sLine, ' ', fields, true);
                 for (std::string& sfield : fields)
                     sfield = CConversion::trim(sfield);
+                timer.SetTime("02e");
             }
+            timer.SetTime("04");
+
             if (IsTimeAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_TimeIdx)
@@ -878,6 +1102,8 @@ void CLogFile::parse(void)
                 else
                     m_sTime = "";
             }
+            timer.SetTime("05");
+
             if (IsLevelAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_LevelIdx)
@@ -887,6 +1113,8 @@ void CLogFile::parse(void)
                 else
                     m_sLevel = "";
             }
+            timer.SetTime("06");
+
             if (IsProcIdAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_ProdIdIdx)
@@ -896,6 +1124,8 @@ void CLogFile::parse(void)
                 else
                     m_sProcId = "";
             }
+            timer.SetTime("07");
+
             if (IsThreadIdAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_ThreadIdIdx)
@@ -906,6 +1136,8 @@ void CLogFile::parse(void)
                 else
                     m_sThreadId = "";
             }
+            timer.SetTime("08");
+
             if (IsClassNameAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_ClassNameIdx)
@@ -917,6 +1149,8 @@ void CLogFile::parse(void)
                 else
                     m_sClassname = "";
             }
+            timer.SetTime("09");
+
             if (IsFuncNameAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_FuncIdx)
@@ -928,6 +1162,8 @@ void CLogFile::parse(void)
                 else
                     m_sFuncName = "";
             }
+            timer.SetTime("10");
+
             if (IsDescriptionAvailable())
             {
                 if (static_cast<int>(fields.size()) > m_DescIdx)
@@ -954,14 +1190,15 @@ void CLogFile::parse(void)
                 else
                     m_sDescription = "";
             }
+            timer.SetTime("11");
 
             if (isTraceLevelValid(m_sLevel.c_str()))
             {
+                timer.SetTime("12");
                 m_bDetectedFormat = true;
                 m_logEntries.push_back(CLogEntry(m_trace, m_sTime.c_str(), m_sLevel.c_str(), m_sProcId.c_str(),
                                                  m_sThreadId.c_str(), m_sClassname.c_str(), m_sFuncName.c_str(), m_sDescription.c_str()));
-                m_filteredEntries.push_back(CLogEntry(m_trace, m_sTime.c_str(), m_sLevel.c_str(), m_sProcId.c_str(),
-                                                      m_sThreadId.c_str(), m_sClassname.c_str(), m_sFuncName.c_str(), m_sDescription.c_str()));
+                timer.SetTime("13");
             }
             else
             {
@@ -971,39 +1208,124 @@ void CLogFile::parse(void)
                     continue;
                 }
 
-                if (1)
+                if (m_logEntries.size() > 0)
                 {
-                    if (m_logEntries.size() > 0)
-                    {
-                        m_logEntries.push_back(CLogEntry(m_trace,
-                                                         m_logEntries[m_logEntries.size() - 1].Time().c_str(),
-                                                         m_logEntries[m_logEntries.size() - 1].Level().c_str(),
-                                                         m_logEntries[m_logEntries.size() - 1].ProcID().c_str(),
-                                                         m_logEntries[m_logEntries.size() - 1].ThreadID().c_str(),
-                                                         m_logEntries[m_logEntries.size() - 1].Class().c_str(),
-                                                         m_logEntries[m_logEntries.size() - 1].FuncName().c_str(),
-                                                         m_sLine.c_str()));
-                        m_filteredEntries.push_back(CLogEntry(m_trace,
-                                                              m_logEntries[m_logEntries.size() - 1].Time().c_str(),
-                                                              m_logEntries[m_logEntries.size() - 1].Level().c_str(),
-                                                              m_logEntries[m_logEntries.size() - 1].ProcID().c_str(),
-                                                              m_logEntries[m_logEntries.size() - 1].ThreadID().c_str(),
-                                                              m_logEntries[m_logEntries.size() - 1].Class().c_str(),
-                                                              m_logEntries[m_logEntries.size() - 1].FuncName().c_str(),
-                                                              m_sLine.c_str()));
-                    }
-                }
-                else
-                {
-                    m_logEntries[m_logEntries.size() - 1].AddDescription(m_sLine.c_str());
-                    m_filteredEntries[m_filteredEntries.size() - 1].AddDescription(m_sLine.c_str());
+                    timer.SetTime("14");
+                    m_logEntries.push_back(CLogEntry(m_trace,
+                                                     m_logEntries[m_logEntries.size() - 1].Time().c_str(),
+                                                     m_logEntries[m_logEntries.size() - 1].Level().c_str(),
+                                                     m_logEntries[m_logEntries.size() - 1].ProcID().c_str(),
+                                                     m_logEntries[m_logEntries.size() - 1].ThreadID().c_str(),
+                                                     m_logEntries[m_logEntries.size() - 1].Class().c_str(),
+                                                     m_logEntries[m_logEntries.size() - 1].FuncName().c_str(),
+                                                     m_sLine.c_str()));
+                    timer.SetTime("15");
                 }
             }
+            timer.SetTime("16");
         }
-        timer.SetTime("End");
+        timer.SetTime("17");
+        // Create the filtered entries and copy it from the m_logEntries
+        m_filteredEntries.reserve(m_logEntries.size());
+        timer.SetTime("18");
+        std::copy(m_logEntries.begin(), m_logEntries.end(), std::back_inserter(m_filteredEntries));
+        timer.SetTime("19");
+
+
+        trace.Info("Relative time 01-02 : %s" , timer.GetRelativeTimes("01","02").c_str());
+        trace.Info("Relative time 02b-02c : %s" , timer.GetRelativeTimes("02b","02c").c_str());
+        trace.Info("Relative time 02d-02e : %s" , timer.GetRelativeTimes("02d","02e").c_str());
+        trace.Info("Relative time 02-04 : %s" , timer.GetRelativeTimes("02","04").c_str());
+        trace.Info("Relative time 04-05 : %s" , timer.GetRelativeTimes("04","05").c_str());
+        trace.Info("Relative time 05-06 : %s" , timer.GetRelativeTimes("05","06").c_str());
+        trace.Info("Relative time 06-07 : %s" , timer.GetRelativeTimes("06","07").c_str());
+        trace.Info("Relative time 07-08 : %s" , timer.GetRelativeTimes("07","08").c_str());
+        trace.Info("Relative time 08-09 : %s" , timer.GetRelativeTimes("08","09").c_str());
+        trace.Info("Relative time 09-10 : %s" , timer.GetRelativeTimes("09","10").c_str());
+        trace.Info("Relative time 10-11 : %s" , timer.GetRelativeTimes("10","11").c_str());
+        trace.Info("Relative time 11-16 : %s" , timer.GetRelativeTimes("11","16").c_str());
+        trace.Info("Relative time 16-02 : %s" , timer.GetRelativeTimes("16","02").c_str());
+        trace.Info("Relative time 12-13 : %s" , timer.GetRelativeTimes("12","13").c_str());
+        trace.Info("Relative time 14-15 : %s" , timer.GetRelativeTimes("14","15").c_str());
+        trace.Info("Relative time 17-18 : %s" , timer.GetRelativeTimes("17","18").c_str());
+        trace.Info("Relative time 18-19 : %s" , timer.GetRelativeTimes("18","19").c_str());
+
     }
     catch(std::exception& ex)
     {
         trace.Error("Exception occurred : %s", ex.what());
     }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
+}
+int CLogFile::getFileSize(FILE* fp)
+{
+    CFuncTracer trace("CLogFile::getFileSize", m_trace);
+    CScopeTimer timer("CLogFile::getFileSize", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
+    int iSize = -1;
+    try
+    {
+        int prev = ftell(fp);
+        fseek(fp, 0L, SEEK_END);
+        iSize = ftell(fp);
+        fseek(fp, prev, SEEK_SET);
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+    return iSize;
+}
+
+int CLogFile::getNrOfLines(const std::string& file)
+{
+    CFuncTracer trace("CLogFile::getNrOfLines", m_trace);
+    CScopeTimer timer("CLogFile::getNrOfLines", 0, [=, &trace](const std::string& msg){
+        trace.Info("Timings:");
+        trace.Info("    %s", msg.c_str());
+    });
+
+    int ilines = -1;
+    try
+    {
+        FILE* fp = fopen(file.c_str(), "r");
+        if (fp != NULL)
+        {
+            int iFileSize = getFileSize(fp);
+            if (iFileSize > 0)
+            {
+                std::unique_ptr<char[]> buffer = std::make_unique<char[]>(iFileSize);
+                int bytesRead = fread(buffer.get(), 1, iFileSize, fp);
+                char *ptr = buffer.get();
+                for (int i = 0; i < bytesRead; i++)
+                {
+                    if (*ptr++ == '\n')
+                        ilines++;
+                }
+            }
+
+            fclose(fp);
+            fp = NULL;
+            trace.Trace("Number of lines: %ld", ilines);
+        }
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+    return ilines;
 }

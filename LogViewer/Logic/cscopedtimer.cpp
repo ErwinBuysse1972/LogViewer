@@ -65,9 +65,12 @@ CScopeTimer::~CScopeTimer()
 
     for (auto& ts : m_interestingTimes)
     {
-        auto duration = ts.second - m_start;
-        float fdur = std::chrono::duration<float, std::micro>(duration).count();
-        ss << "    " << ts.first << " : " << fdur << " us" << std::endl;
+        if (ts.second.size() > 0)
+        {
+            auto duration = ts.second[0] - m_start;
+            float fdur = std::chrono::duration<float, std::micro>(duration).count();
+            ss << "    " << ts.first << " : " << fdur << " us" << std::endl;
+        }
     }
 
 
@@ -81,9 +84,37 @@ CScopeTimer::~CScopeTimer()
 }
 void CScopeTimer::SetTime(const std::string& tsName)
 {
+    if (m_interestingTimes.find(tsName)== m_interestingTimes.end())
+    {
+        m_interestingTimes.insert(std::make_pair(tsName, std::vector<Clocktype::time_point>()));
+    }
+    m_interestingTimes[tsName].push_back(Clocktype::now());
+}
 
-    if (m_interestingTimes.find(tsName)!= m_interestingTimes.end())
-        m_interestingTimes[tsName] = Clocktype::now();
-    else
-        m_interestingTimes.insert(std::make_pair(tsName, Clocktype::now()));
+std::string CScopeTimer::GetRelativeTimes(const std::string& First, const std::string& Later, bool bAverageOnly)
+{
+    std::stringstream ss;
+
+    if (m_interestingTimes.find(First) != m_interestingTimes.end())
+    {
+        if (m_interestingTimes[First].size() == m_interestingTimes[Later].size())
+        {
+            float fdur_total = 0.0;
+            for(int idx = 0; idx < (int)m_interestingTimes[First].size(); idx++)
+            {
+                if (m_interestingTimes[Later][idx] > m_interestingTimes[First][idx])
+                {
+                    auto duration = m_interestingTimes[Later][idx] - m_interestingTimes[First][idx];
+                    float fdur = std::chrono::duration<float, std::nano>(duration).count();
+                    if (bAverageOnly == false)
+                        ss << "    " << fdur << " ns." << std::endl;
+                    fdur_total += fdur;
+                }
+            }
+            ss << "average time : " << (fdur_total/m_interestingTimes[First].size()) << " ns, (#meas : " << m_interestingTimes[First].size() << "," << m_interestingTimes[Later].size() << ")" << std::endl;
+        }
+        else
+            ss << "first (" << m_interestingTimes[First].size() << "), later (" << m_interestingTimes[Later].size() << ")" << std::endl;
+    }
+    return ss.str();
 }

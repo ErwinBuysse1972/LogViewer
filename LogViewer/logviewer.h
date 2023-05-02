@@ -20,6 +20,7 @@
 #include "searchform.h"
 #include "Logic/clogfile.h"
 
+class LogEntryView;
 
 class LogViewer : public QWidget
 {
@@ -53,6 +54,7 @@ private slots:
     void on_cboClass_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int> roles);
     void on_cboFunction_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int> roles);
     void on_cboLevel_checkbox_changed(const QModelIndex&, const QModelIndex&, QList<int>roles);
+    void on_double_click(const CLogEntry& entry);
 private:
     QHBoxLayout *m_hlayout;
     QVBoxLayout *m_vlayout;
@@ -103,6 +105,7 @@ private:
     QComboBox *cbxSearch;
 
     SearchForm *m_searchDialog;
+    LogEntryView* m_logEntryView;
 
     QShortcut *keyCtrlM; // key used for toggle marks
     QShortcut *keyF2;    // Goto next search text.
