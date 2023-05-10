@@ -129,7 +129,6 @@ LogViewer::LogViewer(std::shared_ptr<CTracer> tracer, QWidget *parent)
         trace.Error("Exception occurred");
     }
 }
-
 LogViewer::~LogViewer()
 {
     CFuncTracer trace("LogViewer::~LogViewer", m_trace);
@@ -824,6 +823,22 @@ void LogViewer::update_current_tab(void)
         trace.Error("Exception occurred");
     }
 }
+void LogViewer::update_config_settings(std::shared_ptr<CConfigSettings>& configSettings)
+{
+    CFuncTracer trace("LogViewer::update_config_settings", m_trace);
+    try
+    {
+
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+}
 
 void LogViewer::on_cbxWordOnly_stateChanged(int /*arg1*/)
 {
@@ -1389,6 +1404,139 @@ void LogViewer::open()
             timer.SetTime("Select correct tab");
             connect(logFileWidget, SIGNAL(RowDoubleClicked(const CLogEntry& entry)), this, SLOT(LogViewer::on_double_click));
             timer.SetTime("Add double row click connection");
+            // Add drop down registrations
+            logFileWidget->RegisterDropDown_StartTime([=, &trace](const std::string& starttime){
+                trace.Trace("Drop down start time selected (time: %s)", starttime.c_str());
+                std::string hours = starttime.substr(0, starttime.find_first_of(":"));
+                std::string minutes = starttime.substr(starttime.find_first_of(":") + 1, starttime.find_last_of(":"));
+                std::string seconds = starttime.substr(starttime.find_last_of(":") + 1, starttime.find_first_of("."));
+                std::string milliseconds = starttime.substr(starttime.find_last_of(".") + 1);
+
+                dtStartTime->setTime(QTime(std::atoi(hours.c_str()),
+                                           std::atoi(minutes.c_str()),
+                                           std::atoi(seconds.c_str()),
+                                           std::atoi(milliseconds.c_str())));
+                std::string endtime = dtEndTime->text().toStdString();
+                m_currentLogFile->SetTimeFilter(starttime, endtime);
+
+                // Update GUI
+                update_current_tab();
+            });
+            logFileWidget->RegisterDropDown_StopTime([=, &trace](const std::string& stoptime){
+                trace.Trace("Drop down stop time selected (time: %s)", stoptime.c_str());
+
+                std::string hours = stoptime.substr(0, stoptime.find_first_of(":"));
+                std::string minutes = stoptime.substr(stoptime.find_first_of(":") + 1, stoptime.find_last_of(":"));
+                std::string seconds = stoptime.substr(stoptime.find_last_of(":") + 1, stoptime.find_first_of("."));
+                std::string milliseconds = stoptime.substr(stoptime.find_last_of(".") + 1);
+
+                dtEndTime->setTime(QTime(std::atoi(hours.c_str()),
+                                           std::atoi(minutes.c_str()),
+                                           std::atoi(seconds.c_str()),
+                                         std::atoi(milliseconds.c_str())));
+                std::string starttime = dtStartTime->text().toStdString();
+                m_currentLogFile->SetTimeFilter(starttime, stoptime);
+
+                // Update GUI
+                update_current_tab();
+            });
+            logFileWidget->RegisterDropDown_ProcID([=, &trace](const std::string& procID){
+                trace.Trace("Drop down pocess id selected (process id : %s)", procID);
+            });
+            logFileWidget->RegisterDropDown_ThreadID([=, &trace](const std::string& threadID){
+                trace.Trace("Drop down thread id selectd (thread id : %s)", threadID);
+            });
+            logFileWidget->RegisterDropDown_MarkToggle([=, &trace](QModelIndex index){
+                QLogFileWidget *current_tab = dynamic_cast<QLogFileWidget*>(tabWidget->widget(m_currentTabIdx));
+                if (current_tab != nullptr)
+                {
+                    bool bMark = false;
+                    long long id = current_tab->ToggleMark(index, bMark);
+                    m_currentLogFile->SetMark(id, bMark);
+                }
+                else
+                    trace.Warning("Current tab is not found");
+            });
+            logFileWidget->RegisterDropDown_DisableClass([=, &trace](const std::string& cls){
+                trace.Trace("Drop down disable class pushed (class : %s)", cls.c_str());
+                std::map<std::string, bool> classes = m_currentLogFile->GetClasses();
+                if (classes.find(cls) != classes.end())
+                {
+                    classes[cls] = false;
+                    m_currentLogFile->UpdateClassFunctions(true, cls);
+                    // clear combo box
+                    cboClass->clear();
+                    // Add to combo box
+                    cbo_classModel->append(classes);
+
+                    // update the function checkboxes
+                    std::map<std::string, bool> functions = m_currentLogFile->GetFunctions();
+                    // Clear combo box
+                    cboFunction->clear();
+                    // Add to combo box
+                    cboFunctionModel->append(functions);
+
+                    // Perform the filtering
+                    m_currentLogFile->ClearFilter();
+                    m_currentLogFile->SetClassNameFilter();
+                    m_currentLogFile->SetFunctionFilter();
+
+                    // Update GUI
+                    update_current_tab();
+                }
+            });
+            logFileWidget->RegisterDropDown_DisableFunc([=, &trace](const std::string& func){
+                trace.Trace("Drop down disable func pushed (func : %s)", func.c_str());
+                std::map<std::string, bool> functions = m_currentLogFile->GetFunctions();
+                if (functions.find(func) != functions.end())
+                {
+                    functions[func] = false;
+                    m_currentLogFile->UpdateFunctionName(true, func);
+                    // Clear combo box
+                    cboFunction->clear();
+                    // Add to combo box
+                    cboFunctionModel->append(functions);
+
+                    // Perform the filtering
+                    m_currentLogFile->ClearFilter();
+                    m_currentLogFile->SetClassNameFilter();
+                    m_currentLogFile->SetFunctionFilter();
+
+                    // Update GUI
+                    update_current_tab();
+                }
+                else
+                    trace.Error("Function is not found in the list");
+
+            });
+            logFileWidget->RegisterDropDown_DisableTraceLevel([=, &trace](const std::string& lvl){
+                trace.Trace("Drop down disable tracelevel pushed (level : %s)", lvl.c_str());
+                std::map<std::string, bool> tracelevels = m_currentLogFile->GetTracelevels();
+                if (tracelevels.find(lvl) != tracelevels.end())
+                {
+                    if (tracelevels[lvl] == true)
+                    {
+                        // update GUI
+                        tracelevels[lvl] = false;
+                        m_currentLogFile->UpdateLevel(true, lvl);
+                        //clear combo box
+                        cboLevel->clear();
+                        //Add to combo box
+                        cbo_levelModel->append(tracelevels);
+
+                        // Perform filtering
+                        m_currentLogFile->ClearFilter();
+                        m_currentLogFile->SetLevelFilter();
+
+                        // Update GUI
+                        update_current_tab();
+                    }
+                    else
+                        trace.Error("tracelevel is already disabled");
+                }
+                else
+                    trace.Error("Tracelevel %s is not found!", lvl.c_str());
+            });
         }
     }
     catch(std::exception& ex)

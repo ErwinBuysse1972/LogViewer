@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE QtCreatorProject>
-<!-- Written by QtCreator 10.0.0, 2023-04-27T15:54:01. -->
+<!-- Written by QtCreator 10.0.0, 2023-05-10T23:54:35. -->
 <qtcreator>
  <data>
   <variable>EnvironmentId</variable>
@@ -97,7 +97,7 @@
    <value type="qlonglong" key="ProjectExplorer.Target.ActiveDeployConfiguration">0</value>
    <value type="qlonglong" key="ProjectExplorer.Target.ActiveRunConfiguration">0</value>
    <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.0">
-    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/erwin/software/Enbh/LogViewer/build-LogViewer-Desktop_Qt_6_5_0_GCC_64bit-Debug</value>
+    <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/erwin/software/Enbh/Debug/LogViewer</value>
     <valuemap type="QVariantMap" key="ProjectExplorer.BuildConfiguration.BuildStepList.0">
      <valuemap type="QVariantMap" key="ProjectExplorer.BuildStepList.Step.0">
       <value type="bool" key="ProjectExplorer.BuildStep.Enabled">true</value>
@@ -135,7 +135,7 @@
     <valuelist type="QVariantList" key="ProjectExplorer.BuildConfiguration.UserEnvironmentChanges"/>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.DisplayName">Debug</value>
     <value type="QString" key="ProjectExplorer.ProjectConfiguration.Id">Qbs.QbsBuildConfiguration</value>
-    <value type="QString" key="Qbs.configName">Debug_Desktop__307503251037df1d</value>
+    <value type="QString" key="Qbs.configName">Debug_Desktop</value>
    </valuemap>
    <valuemap type="QVariantMap" key="ProjectExplorer.Target.BuildConfiguration.1">
     <value type="QString" key="ProjectExplorer.BuildConfiguration.BuildDirectory">/home/erwin/software/Enbh/LogViewer/build-LogViewer-Desktop_Qt_6_5_0_GCC_64bit-Release</value>
@@ -244,7 +244,7 @@
     <value type="bool" key="RunConfiguration.UseQmlDebugger">false</value>
     <value type="bool" key="RunConfiguration.UseQmlDebuggerAuto">true</value>
     <value type="bool" key="RunConfiguration.UseTerminal">false</value>
-    <value type="QString" key="RunConfiguration.WorkingDirectory.default">/home/erwin/software/Enbh/LogViewer/build-LogViewer-Desktop_Qt_6_5_0_GCC_64bit-Debug/Debug_Desktop__307503251037df1d/install-root/usr/local/bin</value>
+    <value type="QString" key="RunConfiguration.WorkingDirectory.default">/home/erwin/software/Enbh/Debug/LogViewer/Debug_Desktop/install-root/usr/local/bin</value>
    </valuemap>
    <value type="qlonglong" key="ProjectExplorer.Target.RunConfigurationCount">1</value>
   </valuemap>

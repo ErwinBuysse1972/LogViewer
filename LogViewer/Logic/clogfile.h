@@ -1,14 +1,16 @@
 #pragma once
+#include <QStringList>
 #include <string>
 #include <vector>
 #include <map>
 #include "cfunctracer.h"
 #include "ctracer.h"
+#include "cconfigsettings.h"
 
 class CLogEntry
 {
 public:
-    CLogEntry()
+    CLogEntry()  noexcept
         : m_time("")
         , m_level("")
         , m_procId("")
@@ -25,7 +27,7 @@ public:
 
     }
     CLogEntry(std::shared_ptr<CTracer> tracer, const char *time, const char* level, const char *procId, const char *threadId, const char *classname,
-              const char *func, const char* desc)
+              const char *func, const char* desc)  noexcept
         : m_trace(tracer)
         , m_time(time)
         , m_level(level)
@@ -245,10 +247,14 @@ private:
     std::map<std::string, bool> m_Functions;
     std::map<std::string, bool> m_Classes;
     std::map<std::string, bool> m_TraceLevels;
+    std::shared_ptr<CConfigSettings> m_SPConfigSettings;
 
+    void parse_MP(void);
+    void automaticDetectionFormat_MP(QStringList fields);
     void parse(void);
     void automaticDetectFormat(std::vector<std::string>& fields);
     bool isTraceLevelValid(const char *level);
+    void UpdateConfigSettings(void);
     int getFileSize(FILE* fp);
     int getNrOfLines(const std::string& file);
     void saveXmlBegin(void);

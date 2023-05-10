@@ -1,4 +1,10 @@
 #include "clogfile.h"
+#include <QFile>
+#include <QString>
+#include <QStringList>
+#include <QByteArray>
+#include <QDataStream>
+#include <QTextStream>
 #include <vector>
 #include <exception>
 #include <string>
@@ -6,9 +12,11 @@
 #include <fstream>
 #include <algorithm>
 #include <stdio.h>
+#include <memory>
 #include "cfunctracer.h"
 #include "cscopedtimer.h"
 #include "cconversion.h"
+#include "cconfigsettings.h"
 
 long long CLogEntry::m_genID = 0;
 
@@ -43,8 +51,16 @@ CLogFile::CLogFile(const char* file, std::shared_ptr<CTracer> tracer)
     });
     try
     {
+        m_SPConfigSettings = std::make_shared<CConfigSettings>(m_trace, m_name);
+
         timer.SetTime("00");
-        int iLines = getNrOfLines(file);
+        int iLines = m_SPConfigSettings->lines();
+
+        if (iLines <= 0)
+            getNrOfLines(file);
+        else
+            UpdateConfigSettings();
+
         timer.SetTime("01");
         trace.Info("File : %s (lines : %ld)", file, iLines);
         timer.SetTime("02");
@@ -52,7 +68,7 @@ CLogFile::CLogFile(const char* file, std::shared_ptr<CTracer> tracer)
         timer.SetTime("03");
         m_filteredEntries.reserve(iLines);
         timer.SetTime("04");
-        parse();
+        parse_MP();
         timer.SetTime("05");
         trace.Info("entries: %ld", m_logEntries.size());
         timer.SetTime("06");
@@ -400,10 +416,16 @@ void CLogFile::SetTimeFilter(std::string startTime, std::string endTime)
             return;
         }
 
+        int prevSize = m_filteredEntries.size();
+
         m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(), m_filteredEntries.end(), [=, &uiStartTime, &uiEndTime](CLogEntry& entry){
                                     return (  (entry.GetTime() < uiStartTime)
                                             ||(entry.GetTime() > uiEndTime));
                                }), m_filteredEntries.end());
+
+        trace.Trace("Number of entries removed: %ld, total entries: %ld"
+                    , (prevSize - m_filteredEntries.size())
+                    , m_filteredEntries.size());
     }
     catch(std::exception& ex)
     {
@@ -514,9 +536,14 @@ void CLogFile::SetThreadIdFilter(std::vector<int> ThreadIdFilters)
     CFuncTracer trace("CLogFile::SetThreadIdFilter", m_trace);
     try
     {
+        int prevSize = m_filteredEntries.size();
         m_filteredEntries.erase(std::remove_if(m_filteredEntries.begin(), m_filteredEntries.end(), [=](CLogEntry& entry){
                                     return !Contains<int>(ThreadIdFilters, entry.GetThreadId());
                                 }), m_filteredEntries.end());
+        trace.Trace("Number of entries removed: %ld, total entries: %ld"
+                    , (prevSize - m_filteredEntries.size())
+                    , m_filteredEntries.size());
+
     }
     catch(std::exception& ex)
     {
@@ -973,7 +1000,7 @@ void CLogFile::SetRequiredText(long long id, const std::string& text, bool bRequ
 // Private functions
 void CLogFile::automaticDetectFormat(std::vector<std::string>& fields)
 {
-    CFuncTracer trace("CLogFile::parse", m_trace);
+    CFuncTracer trace("CLogFile::automaticDetectFormat", m_trace);
     try
     {
         int iFieldIdx = 0;
@@ -1047,11 +1074,353 @@ void CLogFile::automaticDetectFormat(std::vector<std::string>& fields)
         trace.Error("Exception occurred");
     }
 }
+void CLogFile::UpdateConfigSettings(void)
+{
+    CFuncTracer trace("CLogFile::UpdateConfigSettings", m_trace);
+    try
+    {
+
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+}
 bool CLogFile::isTraceLevelValid(const char *level)
 {
     std::vector<std::string> validTraceLevels ={"TRACE", "INFO", "WARNING", "ERROR", "FATAL_ERROR"};
     return Contains(validTraceLevels, level);
 }
+void CLogFile::automaticDetectionFormat_MP(QStringList fields)
+{
+    CFuncTracer trace("CLogFile::automaticDetectionFormat_MP", m_trace);
+    try
+    {
+        int iFieldIdx = 0;
+        bool bFuncSeparatorFound = false;
+        bool bDescriptionSeparatorFound = false;
+
+        for (QString sfield : fields)
+        {
+            if (  (sfield.length() == 1)
+                &&(sfield ==  "-"))
+            {
+                bFuncSeparatorFound = true;
+            }
+            else if (  (sfield.length() == 1)
+                     &&(sfield == ":"))
+            {
+                bDescriptionSeparatorFound = true;
+            }
+            else if (  (  (sfield.indexOf("TRACE") >= 0)
+                        ||(sfield.indexOf("INFO") >= 0)
+                        ||(sfield.indexOf("WARNING") >= 0)
+                        ||(sfield.indexOf("ERROR") >= 0)
+                        ||(sfield.indexOf("FATAL") >= 0))
+                     &&(bDescriptionSeparatorFound == false) )
+            {
+                m_LevelIdx = iFieldIdx;
+            }
+            else if (  (sfield.length() == 12)
+                     &&(sfield[2] == ':')
+                     &&(sfield[5] == ':')
+                     &&(sfield[8] == '.'))
+            {
+                m_TimeIdx = iFieldIdx;
+            }
+            else if (  (sfield.indexOf(":") > 0)
+                     &&(sfield[0] == '[')
+                     &&(sfield[(sfield.length() - 1)] == ']'))
+            {
+                m_ProdIdIdx = iFieldIdx;
+                m_ThreadIdIdx = iFieldIdx;
+            }
+            else if (bFuncSeparatorFound == true)
+            {
+                if (bDescriptionSeparatorFound == true)
+                {
+                    if (m_DescIdx == -1)
+                    {
+                        m_DescIdx = iFieldIdx;
+                    }
+                }
+                else
+                {
+                    m_FuncIdx = iFieldIdx;
+                    m_ClassNameIdx = iFieldIdx;
+                }
+            }
+
+            iFieldIdx ++;
+        }
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+}
+void CLogFile::parse_MP(void)
+{
+    CFuncTracer trace("CLogFile::parse_MP", m_trace);
+    CScopeTimer timer("CLogFile::parse_MP", 0, [=, &trace](const std::string& msg)
+                      {
+                          trace.Info("Timings : ");
+                          trace.Info("   %s", msg.c_str());
+                      });
+    std::ifstream file(m_name);
+    try
+    {
+        timer.SetTime("0a");
+        QFile file(QString::fromStdString(m_name));
+        timer.SetTime("0b");
+        file.open(QFile::ReadOnly);
+        timer.SetTime("0c");
+
+        unsigned char* memory = file.map(0, file.size());
+        timer.SetTime("0d");
+
+        if (memory == nullptr)
+        {
+            trace.Error("Memory allocation for the file failed");
+            return;
+        }
+        timer.SetTime("0e");
+/*
+        QDataStream::readRawData(memory, file.size());*/
+        timer.SetTime("0f");
+
+        int size32Bit = static_cast<int>(file.size());
+        timer.SetTime("0g");
+
+        auto bytes = QByteArray::fromRawData(reinterpret_cast<const char*>(memory), size32Bit);
+        timer.SetTime("0h");
+
+        QTextStream instream(bytes);
+        timer.SetTime("0i");
+
+        timer.SetTime("00");
+        m_logEntries.clear();
+        timer.SetTime("01");
+
+        while(!instream.atEnd())
+        {
+
+            timer.SetTime("01a");
+            QString line = instream.readLine();
+            timer.SetTime("01b");
+            m_sLine = line.toStdString();
+            timer.SetTime("01c");
+            QStringList fields = line.split(' ', Qt::SplitBehaviorFlags::SkipEmptyParts);
+            timer.SetTime("01d");
+
+            if (fields.size() == 0)
+                continue;
+
+            timer.SetTime("02");
+            if (!m_bDetectedFormat)
+            {
+                timer.SetTime("02b");
+                automaticDetectionFormat_MP(fields);
+                timer.SetTime("02c");
+            }
+            timer.SetTime("04");
+
+            if (IsTimeAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_TimeIdx)
+                {
+                    m_sTime = fields[m_TimeIdx].toStdString();
+                }
+                else
+                    m_sTime = "";
+            }
+            timer.SetTime("05");
+
+            if (IsLevelAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_LevelIdx)
+                {
+                    m_sLevel = fields[m_LevelIdx].toStdString();
+                }
+                else
+                    m_sLevel = "";
+            }
+            timer.SetTime("06");
+
+            if (IsProcIdAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_ProdIdIdx)
+                {
+                    std::string sProc = fields[m_ProdIdIdx].toStdString();
+                    m_sProcId = sProc.substr(1, sProc.find(":") - 1);
+                }
+                else
+                    m_sProcId = "";
+            }
+            timer.SetTime("07");
+
+            if (IsThreadIdAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_ThreadIdIdx)
+                {
+                    std::string sThread = fields[m_ThreadIdIdx].toStdString();
+                    m_sThreadId = sThread.substr(sThread.find(":") + 1);
+                    m_sThreadId = m_sThreadId.substr(0, m_sThreadId.find_last_of("]"));
+                }
+                else
+                    m_sThreadId = "";
+            }
+            timer.SetTime("08");
+
+            if (IsClassNameAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_ClassNameIdx)
+                {
+                    std::string sClass = fields[m_ClassNameIdx].toStdString();
+                    m_sClassname = sClass.substr(0, sClass.find_first_of(":"));
+                    if (m_sClassname.length() > m_maxClassLength)
+                        m_maxClassLength = m_sClassname.length();
+                }
+                else
+                    m_sClassname = "";
+            }
+            timer.SetTime("09");
+
+            if (IsFuncNameAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_FuncIdx)
+                {
+                    std::string sFunc = fields[m_FuncIdx].toStdString();
+                    m_sFuncName = sFunc.substr(sFunc.find_last_of(":") + 1);
+                    if (m_sFuncName.length() > m_maxFuncLength)
+                        m_maxFuncLength = m_sFuncName.length();
+                }
+                else
+                    m_sFuncName = "";
+            }
+            timer.SetTime("10");
+
+            if (IsDescriptionAvailable())
+            {
+                if (static_cast<int>(fields.size()) > m_DescIdx)
+                {
+                    std::string s = " : ";
+                    int start_pos = 0;
+                    if (fields[m_DescIdx].toStdString() == "-")
+                    {
+                        s = fields[m_DescIdx + 1].toStdString();
+                        m_sDescription = " - ";
+                        start_pos = m_sLine.find(s);
+                    }
+                    else
+                    {
+                        s += fields[m_DescIdx].toStdString();
+                        m_sDescription = "";
+                        start_pos = m_sLine.find(s) + 3;
+                    }
+
+                    m_sDescription += m_sLine.substr(start_pos);
+                    if (m_sDescription.length() > m_maxDescLength)
+                        m_maxDescLength = m_sDescription.length();
+                }
+                else
+                    m_sDescription = "";
+            }
+            timer.SetTime("11");
+
+            if (isTraceLevelValid(m_sLevel.c_str()))
+            {
+                timer.SetTime("12");
+                m_bDetectedFormat = true;
+                CLogEntry entry(m_trace, m_sTime.c_str(), m_sLevel.c_str(), m_sProcId.c_str(),
+                                m_sThreadId.c_str(), m_sClassname.c_str(), m_sFuncName.c_str(), m_sDescription.c_str());
+                timer.SetTime("12b");
+                m_logEntries.emplace_back(entry);
+                timer.SetTime("13");
+            }
+            else
+            {
+                if (! m_bDetectedFormat)
+                    continue;
+
+                if (m_logEntries.size() > 0)
+                {
+                    timer.SetTime("14");
+                    CLogEntry entry(m_trace,
+                              m_logEntries[m_logEntries.size() - 1].Time().c_str(),
+                              m_logEntries[m_logEntries.size() - 1].Level().c_str(),
+                              m_logEntries[m_logEntries.size() - 1].ProcID().c_str(),
+                              m_logEntries[m_logEntries.size() - 1].ThreadID().c_str(),
+                              m_logEntries[m_logEntries.size() - 1].Class().c_str(),
+                              m_logEntries[m_logEntries.size() - 1].FuncName().c_str(),
+                                    m_sLine.c_str());
+                    timer.SetTime("14b");
+                    m_logEntries.emplace_back(entry);
+                    timer.SetTime("15");
+                }
+            }
+            timer.SetTime("16");
+        }
+        file.unmap(memory);
+        file.close();
+
+        timer.SetTime("17");
+        // Create the filtered entries and copy it from the m_logEntries
+        m_filteredEntries.reserve(m_logEntries.size());
+        timer.SetTime("18");
+        std::copy(m_logEntries.begin(), m_logEntries.end(), std::back_inserter(m_filteredEntries));
+        timer.SetTime("19");
+
+
+        trace.Info("Relative time 0a-0b : %s" , timer.GetRelativeTimes("0a","0b").c_str());
+        trace.Info("Relative time 0b-0c : %s" , timer.GetRelativeTimes("0b","0c").c_str());
+        trace.Info("Relative time 0c-0d : %s" , timer.GetRelativeTimes("0c","0d").c_str());
+        trace.Info("Relative time 0d-0e : %s" , timer.GetRelativeTimes("0d","0e").c_str());
+        trace.Info("Relative time 0e-0f : %s" , timer.GetRelativeTimes("0e","0f").c_str());
+        trace.Info("Relative time 0f-0g : %s" , timer.GetRelativeTimes("0f","0g").c_str());
+        trace.Info("Relative time 0g-0h : %s" , timer.GetRelativeTimes("0g","0h").c_str());
+        trace.Info("Relative time 0h-0i : %s" , timer.GetRelativeTimes("0h","0i").c_str());
+        trace.Info("Relative time 00-01 : %s" , timer.GetRelativeTimes("00","01").c_str());
+
+        trace.Info("Relative time 01a-01b : %s" , timer.GetRelativeTimes("01a","01b").c_str());
+        trace.Info("Relative time 01b-01c : %s" , timer.GetRelativeTimes("01b","01c").c_str());
+        trace.Info("Relative time 01c-01d : %s" , timer.GetRelativeTimes("01c","01d").c_str());
+
+        trace.Info("Relative time 02b-02c : %s" , timer.GetRelativeTimes("02b","02c").c_str());
+        trace.Info("Relative time 02-04 : %s" , timer.GetRelativeTimes("02","04").c_str());
+        trace.Info("Relative time 04-05 : %s" , timer.GetRelativeTimes("04","05").c_str());
+        trace.Info("Relative time 05-06 : %s" , timer.GetRelativeTimes("05","06").c_str());
+        trace.Info("Relative time 06-07 : %s" , timer.GetRelativeTimes("06","07").c_str());
+        trace.Info("Relative time 07-08 : %s" , timer.GetRelativeTimes("07","08").c_str());
+        trace.Info("Relative time 08-09 : %s" , timer.GetRelativeTimes("08","09").c_str());
+        trace.Info("Relative time 09-10 : %s" , timer.GetRelativeTimes("09","10").c_str());
+        trace.Info("Relative time 10-11 : %s" , timer.GetRelativeTimes("10","11").c_str());
+        trace.Info("Relative time 11-16 : %s" , timer.GetRelativeTimes("11","16").c_str());
+        trace.Info("Relative time 16-02 : %s" , timer.GetRelativeTimes("16","02").c_str());
+        trace.Info("Relative time 12-13 : %s" , timer.GetRelativeTimes("12","13").c_str());
+        trace.Info("Relative time 14-15 : %s" , timer.GetRelativeTimes("14","15").c_str());
+        trace.Info("Relative time 17-18 : %s" , timer.GetRelativeTimes("17","18").c_str());
+        trace.Info("Relative time 18-19 : %s" , timer.GetRelativeTimes("18","19").c_str());
+    }
+    catch(std::exception& ex)
+    {
+        trace.Error("Exception occurred : %s", ex.what());
+    }
+    catch(...)
+    {
+        trace.Error("Exception occurred");
+    }
+
+}
+
 void CLogFile::parse(void)
 {
     CFuncTracer trace("CLogFile::parse", m_trace);

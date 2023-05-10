@@ -19,6 +19,7 @@
 #include "ctracer.h"
 #include "searchform.h"
 #include "Logic/clogfile.h"
+#include "cconfigsettings.h"
 
 class LogEntryView;
 
@@ -136,6 +137,7 @@ private:
     void update_functionFilter(void);
     void update_traceLevels(void);
     void update_current_tab(void);
+    void update_config_settings(std::shared_ptr<CConfigSettings>& configSettings);
 
     void saveXmlBegin(void);
     void saveCsvEntry(void);

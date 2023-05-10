@@ -14,6 +14,9 @@
 #include <QMessageBox>
 #include <QTextEdit>
 #include <QPainter>
+#include <QMouseEvent>
+#include <QMenu>
+#include <QAction>
 
 #include <functional>
 #include <list>
@@ -21,6 +24,7 @@
 #include "cfunctracer.h"
 #include "ctracer.h"
 #include "cscopedtimer.h"
+#include "cconfigsettings.h"
 
 enum class eColumns
 {
@@ -592,6 +596,39 @@ private:
 
 };
 
+class QLogfileTableView : public QTableView
+{
+public:
+    explicit QLogfileTableView(QWidget *parent = nullptr)
+        : QTableView(parent)
+        , m_onCellClickRight(nullptr)
+        , m_onCellClickLeft(nullptr)
+    {}
+    virtual ~QLogfileTableView(){}
+    void RegisterRightClick(std::function<void(QModelIndex, QPoint)> event){ m_onCellClickRight = event;}
+    void RegisterLeftClick(std::function<void(QModelIndex, QPoint)> event){ m_onCellClickLeft = event;}
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override{
+        QModelIndex index = indexAt(event->pos());
+        if ((event->button() & Qt::LeftButton) == Qt::LeftButton)
+        {
+            if (m_onCellClickLeft != nullptr)
+                m_onCellClickLeft(index, event->globalPosition().toPoint());
+        }
+
+        if ((event->button() & Qt::RightButton) == Qt::RightButton)
+        {
+            if (m_onCellClickRight != nullptr)
+                m_onCellClickRight(index, event->globalPosition().toPoint());
+        }
+    }
+
+private:
+    std::function<void(QModelIndex, QPoint)> m_onCellClickRight;
+    std::function<void(QModelIndex, QPoint)> m_onCellClickLeft;
+};
+
 class QLogFileWidget : public QWidget
 {
     Q_OBJECT
@@ -604,10 +641,27 @@ public:
         , m_View(nullptr)
         , m_Model(nullptr)
         , m_trace(tracer)
+        , actNotifyStartDateTime(nullptr)
+        , actNotifyStopDateTime(nullptr)
+        , actNotifyProcessID(nullptr)
+        , actNotifyThreadID(nullptr)
+        , actNotifyMarkToggle(nullptr)
+        , actNotifyDisableClass(nullptr)
+        , actNotifyDisableFunction(nullptr)
+        , actNotifyDisableTraceLevel(nullptr)
+        , m_notStartTime(nullptr)
+        , m_notStopTime(nullptr)
+        , m_notProcId(nullptr)
+        , m_notThreadId(nullptr)
+        , m_notMarkToggle(nullptr)
+        , m_notDisableClass(nullptr)
+        , m_notDisableFunc(nullptr)
+        , m_notDisableTraceLevel(nullptr)
     {
         CFuncTracer trace("QLogFileWidget::QLogFileWidget", tracer);
         try
         {
+            init_createActions();
             init_createForm(entries);
             connect(m_View, &QTableView::clicked, this, &QLogFileWidget::row_click);
             connect(m_View, &QTableView::doubleClicked, this, &QLogFileWidget::row_double_click);
@@ -767,6 +821,14 @@ public:
             trace.Error("Exception occurred");
         }
     }
+    void RegisterDropDown_StartTime(std::function<void (const std::string&)> event){ m_notStartTime = event; }
+    void RegisterDropDown_StopTime(std::function<void (const std::string&)> event){ m_notStopTime = event; }
+    void RegisterDropDown_ProcID(std::function<void (const std::string&)> event){ m_notProcId = event; }
+    void RegisterDropDown_ThreadID(std::function<void (const std::string&)> event){ m_notThreadId = event; }
+    void RegisterDropDown_MarkToggle(std::function<void (QModelIndex)> event){ m_notMarkToggle = event; }
+    void RegisterDropDown_DisableClass(std::function<void (const std::string&)> event){ m_notDisableClass = event; }
+    void RegisterDropDown_DisableFunc(std::function<void (const std::string&)> event){ m_notDisableFunc = event; }
+    void RegisterDropDown_DisableTraceLevel(std::function<void (const std::string&)> event){ m_notDisableTraceLevel = event; }
 
 signals:
     void RowDoubleClicked(const CLogEntry& index);
@@ -808,23 +870,219 @@ private slots:
             trace.Error("Exception occurred");
         }
     }
+    void notifyStartDateTime(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notStartTime != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string time = entry->Time();
+                trace.Trace("time : %s", time.c_str());
+                m_notStartTime(time);
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void notifyStopDateTime(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notStopTime != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string time = entry->Time();
+                trace.Trace("time : %s", time.c_str());
+                m_notStopTime(time);
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void notifyProcessId(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notProcId != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string id = entry->ProcID();
+                trace.Trace("id : %s", id.c_str());
+                m_notProcId(id);
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void notifyThreadID(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notThreadId != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string id = entry->ThreadID();
+                trace.Trace("id : %s", id.c_str());
+                m_notThreadId(id);
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void toggleMark(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notMarkToggle != nullptr)
+        {
+            trace.Trace("row : %ld", m_notIndex.row());
+            m_notMarkToggle(m_notIndex);
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void disableClass(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notDisableClass != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string cls = entry->Class();
+                trace.Trace("Class : %s", cls.c_str());
+                m_notDisableClass(cls);
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void disablefunction(void)
+    {
+        CFuncTracer trace("QLogFileWidget::", m_trace, false);
+        if (m_notDisableFunc != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string funcName = entry->FuncName();
+                trace.Trace("funcname : %s", funcName.c_str());
+                m_notDisableClass(entry->FuncName());
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
+    void disableTraceLevel(void)
+    {
+        CFuncTracer trace("QLogFileWidget::disableTraceLevel", m_trace, false);
+        if (m_notDisableTraceLevel != nullptr)
+        {
+            std::optional<CLogEntry> entry = m_Model->getLogEntry(m_notIndex.row());
+            if (entry)
+            {
+                std::string level = entry->Level();
+                trace.Trace("level : %s", level.c_str());
+                m_notDisableTraceLevel(level);
+            }
+            else
+                trace.Error("entry on %ld row does not exist", m_notIndex.row());
+        }
+        else
+            trace.Error("disable tracelevel dropdown is not registered");
+    }
 
-private:
+    private:
     int m_tabindex;
     std::string m_FileName;
+
+    QModelIndex m_notIndex;
     QHBoxLayout *m_Layout;
     RichTextDelegate *m_delegate;
-    QTableView *m_View;
+    QLogfileTableView *m_View;
     QLogFileModel *m_Model;
     std::shared_ptr<CTracer> m_trace;
+    QAction *actNotifyStartDateTime;
+    QAction *actNotifyStopDateTime;
+    QAction *actNotifyProcessID;
+    QAction *actNotifyThreadID;
+    QAction *actNotifyMarkToggle;
+    QAction *actNotifyDisableClass;
+    QAction *actNotifyDisableFunction;
+    QAction *actNotifyDisableTraceLevel;
 
+    std::function<void (const std::string&)>    m_notStartTime;
+    std::function<void (const std::string&)>    m_notStopTime;
+    std::function<void (const std::string&)>    m_notProcId;
+    std::function<void (const std::string&)>    m_notThreadId;
+    std::function<void (QModelIndex)>           m_notMarkToggle;
+    std::function<void (const std::string&)>    m_notDisableClass;
+    std::function<void (const std::string&)>    m_notDisableFunc;
+    std::function<void (const std::string&)>    m_notDisableTraceLevel;
+
+    void init_createActions(void)
+    {
+        actNotifyStartDateTime = new QAction(tr("Copy start date time"), this);
+        connect(actNotifyStartDateTime, &QAction::triggered, this, &QLogFileWidget::notifyStartDateTime);
+        actNotifyStopDateTime = new QAction(tr("Copy stop date time"), this);
+        connect(actNotifyStopDateTime, &QAction::triggered, this, &QLogFileWidget::notifyStopDateTime);
+        actNotifyProcessID = new QAction(tr("Copy processId"), this);
+        connect(actNotifyProcessID, &QAction::triggered, this, &QLogFileWidget::notifyProcessId);
+        actNotifyThreadID = new QAction(tr("Copy threadId"), this);
+        connect(actNotifyThreadID, &QAction::triggered, this, &QLogFileWidget::notifyThreadID);
+        actNotifyMarkToggle = new QAction(tr("Toggle Mark"), this);
+        connect(actNotifyMarkToggle, &QAction::triggered, this, &QLogFileWidget::toggleMark);
+        actNotifyDisableClass = new QAction(tr("Disable class"), this);
+        connect(actNotifyDisableClass, &QAction::triggered, this, &QLogFileWidget::disableClass);
+        actNotifyDisableFunction = new QAction(tr("Disable function"), this);
+        connect(actNotifyDisableFunction, &QAction::triggered, this, &QLogFileWidget::disablefunction);
+        actNotifyDisableTraceLevel = new QAction(tr("Disable tracelevel"), this);
+        connect(actNotifyDisableTraceLevel, &QAction::triggered, this, &QLogFileWidget::disableTraceLevel);
+    }
     void init_createForm(std::vector<CLogEntry> entries)
     {
         CFuncTracer trace("QLogFileWidget::init_createForm", m_trace);
         try
         {
             m_delegate = new RichTextDelegate(m_trace, this);
-            m_View = new QTableView(this);
+            m_View = new QLogfileTableView(this);
+            m_View->RegisterRightClick([=](QModelIndex index, QPoint pos){
+                m_notIndex = index;
+                QMenu menu(this);
+                if (actNotifyStartDateTime != nullptr)
+                    menu.addAction(actNotifyStartDateTime);
+                if (actNotifyStopDateTime != nullptr)
+                    menu.addAction(actNotifyStopDateTime);
+                if (actNotifyProcessID != nullptr)
+                    menu.addAction(actNotifyProcessID);
+                if (actNotifyThreadID != nullptr)
+                    menu.addAction(actNotifyThreadID);
+                if (actNotifyMarkToggle != nullptr)
+                    menu.addAction(actNotifyMarkToggle);
+                if (actNotifyDisableFunction != nullptr)
+                    menu.addAction(actNotifyDisableFunction);
+                if (actNotifyDisableTraceLevel != nullptr)
+                    menu.addAction(actNotifyDisableTraceLevel);
+                if (actNotifyDisableClass != nullptr)
+                    menu.addAction(actNotifyDisableClass);
+                menu.exec(pos);
+            });
             m_Model = new QLogFileModel(m_trace, this);
             m_Layout = new QHBoxLayout(this);
 
